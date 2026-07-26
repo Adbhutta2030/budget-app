@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Login from "./Login";
+import logo from "./assets/logo.png";
 
 const PALETTE = ["#D97748","#4A7C8C","#8B5FA3","#C9A227","#B8555A","#3F8F6E","#5B6FBE","#BF7E3D","#7C7C74","#6B9B7A","#A2588F","#4F8FBE"];
 function colorFor(name) {
@@ -20,6 +21,37 @@ const monthLabel = d => new Date(d+"-01").toLocaleDateString("en-US",{month:"sho
 
 const DEFAULT_INCOME_HEADS = ["Salary", "Freelance", "Business", "Gift", "Other income"];
 const DEFAULT_EXPENSE_HEADS = ["Food", "Transport", "Rent", "Utilities", "Shopping", "Health", "Education", "Entertainment", "Other expense"];
+
+function parseVoiceEntry(text, incomeHeads, expenseHeads) {
+  const lower = text.toLowerCase();
+
+  // extract amount (handles "1000", "1,000", "5 hazar", "2 lakh")
+  const numMatch = lower.match(/\d[\d,]*(\.\d+)?/);
+  let amount = numMatch ? parseFloat(numMatch[0].replace(/,/g, "")) : null;
+  if (amount != null) {
+    if (/(hazar|hazaar|thousand)/.test(lower) && amount < 1000) amount *= 1000;
+    else if (/(lakh|lac)/.test(lower) && amount < 1000) amount *= 100000;
+  }
+
+  const incomeKeywords = ["income", "salary", "tankhwah", "amdani", "mila", "mili", "kamaya", "kamayi", "received"];
+  let type = incomeKeywords.some(k => lower.includes(k)) ? "income" : "expense";
+
+  const findHead = (heads) => heads.find(h => lower.includes(h.toLowerCase())) || null;
+  let category = findHead(type === "income" ? incomeHeads : expenseHeads);
+
+  if (!category) {
+    const otherType = type === "income" ? "expense" : "income";
+    const otherMatch = findHead(otherType === "income" ? incomeHeads : expenseHeads);
+    if (otherMatch) { type = otherType; category = otherMatch; }
+  }
+
+  if (!category) {
+    const list = type === "income" ? incomeHeads : expenseHeads;
+    category = list[list.length - 1] || list[0] || "";
+  }
+
+  return { type, category, amount };
+}
 
 const seedTransactions = [
   { id: 1, type: "income", category: "Salary", amount: 120000, date: "2026-07-01", note: "Monthly salary" },
@@ -69,6 +101,7 @@ function BudgetTracker({ uid, userEmail }) {
   const [showTxModal, setShowTxModal] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showHeadModal, setShowHeadModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [txType, setTxType] = useState("expense");
 
   useEffect(() => {
@@ -161,8 +194,14 @@ function BudgetTracker({ uid, userEmail }) {
         )}
       </div>
 
-      <div className="fixed bottom-6 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none">
-        <div className="flex justify-end gap-2 pointer-events-auto">
+      <div className="fixed bottom-5 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="flex justify-end items-center gap-2 pointer-events-auto">
+          {tab !== "bills" && (
+            <button onClick={() => setShowVoiceModal(true)} aria-label="Bol kar entry karein"
+              className="flex items-center justify-center w-12 h-12 bg-rose-600 text-white rounded-full shadow-lg shrink-0">
+              <Mic size={20}/>
+            </button>
+          )}
           {tab === "bills" ? (
             <button onClick={() => setShowBillModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
               <Plus size={18}/> Add bill
@@ -194,25 +233,37 @@ function BudgetTracker({ uid, userEmail }) {
           onClose={() => setShowHeadModal(false)}
         />
       )}
+      {showVoiceModal && (
+        <VoiceModal
+          incomeHeads={incomeHeads} expenseHeads={expenseHeads}
+          onClose={() => setShowVoiceModal(false)}
+          onSave={(tx) => { addTransaction(tx); setShowVoiceModal(false); }}
+        />
+      )}
     </div>
   );
 }
 
 function Header({ onOpenHeads, userEmail }) {
   return (
-    <div className="bg-stone-900 text-white px-5 pt-6 pb-5 flex items-start justify-between">
-      <div>
-        <div className="flex items-center gap-2 text-stone-300 text-xs font-medium tracking-wide uppercase mb-1">
-          <Wallet size={14}/> Personal budget
+    <div className="bg-stone-900 text-white px-4 sm:px-5 pt-5 pb-5 flex items-start justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/95 flex items-center justify-center p-1.5 shrink-0 ring-1 ring-white/10">
+          <img src={logo} alt="Logo" className="w-full h-full object-contain" />
         </div>
-        <h1 className="text-xl font-medium">My finances</h1>
-        {userEmail && <p className="text-xs text-stone-400 mt-0.5">{userEmail}</p>}
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-stone-400 text-[10px] sm:text-xs font-medium tracking-wide uppercase">
+            <Wallet size={12}/> Personal budget
+          </div>
+          <h1 className="text-lg sm:text-xl font-medium truncate">My finances</h1>
+          {userEmail && <p className="text-[11px] text-stone-400 truncate">{userEmail}</p>}
+        </div>
       </div>
-      <div className="flex flex-col items-end gap-2 mt-1">
-        <button onClick={onOpenHeads} className="flex items-center gap-1.5 text-stone-300 text-xs border border-stone-700 rounded-full px-3 py-1.5 hover:text-white hover:border-stone-500">
+      <div className="flex flex-col items-end gap-2 mt-1 shrink-0">
+        <button onClick={onOpenHeads} className="flex items-center gap-1.5 text-stone-300 text-xs border border-stone-700 rounded-full px-2.5 sm:px-3 py-1.5 hover:text-white hover:border-stone-500 whitespace-nowrap">
           <Tag size={13}/> Heads
         </button>
-        <button onClick={() => signOut(auth)} className="flex items-center gap-1.5 text-stone-400 text-xs hover:text-white">
+        <button onClick={() => signOut(auth)} className="flex items-center gap-1.5 text-stone-400 text-xs hover:text-white whitespace-nowrap">
           <LogOut size={12}/> Log out
         </button>
       </div>
@@ -228,15 +279,16 @@ function TabBar({ tab, setTab }) {
     { id: "compare", label: "Compare", icon: TrendingUp },
   ];
   return (
-    <div className="flex bg-white border-b border-stone-200 sticky top-0 z-10 overflow-x-auto">
+    <div className="grid grid-cols-4 bg-white border-b border-stone-200 sticky top-0 z-10">
       {tabs.map(t => {
         const Icon = t.icon;
         const active = tab === t.id;
         return (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 min-w-[90px] flex flex-col items-center gap-1 py-3 text-xs font-medium border-b-2 transition-colors ${active ? "border-stone-900 text-stone-900" : "border-transparent text-stone-400"}`}>
-            <Icon size={17}/>
-            {t.label}
+            className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] sm:text-xs font-medium border-b-2 transition-colors ${active ? "border-stone-900 text-stone-900" : "border-transparent text-stone-400"}`}>
+            <Icon size={16} className="sm:hidden" />
+            <Icon size={17} className="hidden sm:block" />
+            <span className="truncate w-full text-center leading-tight">{t.label}</span>
           </button>
         );
       })}
@@ -503,6 +555,138 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
         className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
         Save entry
       </button>
+    </Modal>
+  );
+}
+
+function VoiceModal({ incomeHeads, expenseHeads, onClose, onSave }) {
+  const [status, setStatus] = useState("listening"); // listening | reviewing | error | unsupported
+  const [transcript, setTranscript] = useState("");
+  const [lang, setLang] = useState("en-US");
+  const [type, setType] = useState("expense");
+  const [category, setCategory] = useState("");
+  const [amount, setAmount] = useState("");
+  const recRef = useRef(null);
+
+  const finalizeTranscript = (text) => {
+    const parsed = parseVoiceEntry(text, incomeHeads, expenseHeads);
+    setType(parsed.type);
+    setCategory(parsed.category);
+    setAmount(parsed.amount != null ? String(parsed.amount) : "");
+    setStatus("reviewing");
+  };
+
+  const startListening = (useLang) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setStatus("unsupported"); return; }
+    const activeLang = useLang || lang;
+    setLang(activeLang);
+    setStatus("listening");
+    setTranscript("");
+    try {
+      const rec = new SR();
+      rec.lang = activeLang;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.onresult = (e) => {
+        let text = "";
+        for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + " ";
+        text = text.trim();
+        setTranscript(text);
+        if (e.results[e.results.length - 1].isFinal) {
+          rec.stop();
+          finalizeTranscript(text);
+        }
+      };
+      rec.onerror = () => setStatus("error");
+      rec.onend = () => setStatus(s => (s === "listening" ? "error" : s));
+      recRef.current = rec;
+      rec.start();
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  useEffect(() => {
+    startListening("en-US");
+    return () => { try { recRef.current?.stop(); } catch {} };
+  }, []);
+
+  const heads = type === "income" ? incomeHeads : expenseHeads;
+
+  return (
+    <Modal onClose={onClose} title="Bol kar entry karein">
+      {status === "unsupported" && (
+        <p className="text-sm text-stone-500">
+          Ye feature is browser mein support nahi hai. Chrome browser (Android ya Desktop) try karein.
+        </p>
+      )}
+
+      {status === "listening" && (
+        <div className="flex flex-col items-center py-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mb-3 animate-pulse">
+            <Mic size={26} className="text-rose-600" />
+          </div>
+          <p className="text-sm text-stone-600 mb-1">Sun raha hoon... bolein</p>
+          <p className="text-xs text-stone-400 mb-4">masalan: "1000 rupees food"</p>
+          {transcript && (
+            <p className="text-sm text-stone-800 bg-stone-100 rounded-lg px-3 py-2 w-full">{transcript}</p>
+          )}
+          <button
+            onClick={() => startListening(lang === "en-US" ? "ur-PK" : "en-US")}
+            className="text-xs text-stone-500 underline mt-4">
+            {lang === "en-US" ? "Urdu mein try karein" : "English mein try karein"}
+          </button>
+        </div>
+      )}
+
+      {status === "error" && (
+        <div className="text-center py-4">
+          <p className="text-sm text-stone-500 mb-3">Awaaz samajh nahi aayi. Dobara koshish karein.</p>
+          <button onClick={() => startListening()} className="bg-stone-900 text-white text-sm px-4 py-2 rounded-lg">
+            Dobara bolein
+          </button>
+        </div>
+      )}
+
+      {status === "reviewing" && (
+        <div>
+          <p className="text-xs text-stone-400 mb-3">Aap ne kaha: <span className="italic">"{transcript}"</span></p>
+          <div className="flex gap-2 mb-4">
+            {["expense", "income"].map(t => (
+              <button key={t}
+                onClick={() => { setType(t); const list = t === "income" ? incomeHeads : expenseHeads; setCategory(list[0] || ""); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize ${type === t ? (t === "income" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "bg-stone-100 text-stone-500"}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <Field label="Amount">
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          </Field>
+          <Field label={type === "income" ? "Income head" : "Expense head"}>
+            {heads.length === 0 ? (
+              <p className="text-sm text-stone-400">Pehle koi head banayein.</p>
+            ) : (
+              <select value={category} onChange={e => setCategory(e.target.value)}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                {heads.map(c => <option key={c}>{c}</option>)}
+              </select>
+            )}
+          </Field>
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => startListening()} className="flex-1 bg-stone-100 text-stone-600 py-2.5 rounded-lg text-sm font-medium">
+              Dobara bolein
+            </button>
+            <button
+              onClick={() => { if (!amount || parseFloat(amount) <= 0 || !category) return; onSave({ type, category, amount: parseFloat(amount), date: todayStr(), note: transcript }); }}
+              className="flex-1 bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium">
+              Save entry
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
