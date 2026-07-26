@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Login from "./Login";
+import Vault from "./Vault";
 import logo from "./logo.png";
 
 const PALETTE = ["#D97748","#4A7C8C","#8B5FA3","#C9A227","#B8555A","#3F8F6E","#5B6FBE","#BF7E3D","#7C7C74","#6B9B7A","#A2588F","#4F8FBE"];
@@ -192,27 +193,32 @@ function BudgetTracker({ uid, userEmail }) {
         {tab === "compare" && (
           <Compare transactions={transactions} />
         )}
+        {tab === "vault" && (
+          <Vault uid={uid} />
+        )}
       </div>
 
-      <div className="fixed bottom-5 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="flex justify-end items-center gap-2 pointer-events-auto">
-          {tab !== "bills" && (
-            <button onClick={() => setShowVoiceModal(true)} aria-label="Bol kar entry karein"
-              className="flex items-center justify-center w-12 h-12 bg-rose-600 text-white rounded-full shadow-lg shrink-0">
-              <Mic size={20}/>
-            </button>
-          )}
-          {tab === "bills" ? (
-            <button onClick={() => setShowBillModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
-              <Plus size={18}/> Add bill
-            </button>
-          ) : (
-            <button onClick={() => setShowTxModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
-              <Plus size={18}/> Add entry
-            </button>
-          )}
+      {tab !== "vault" && (
+        <div className="fixed bottom-5 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <div className="flex justify-end items-center gap-2 pointer-events-auto">
+            {tab !== "bills" && (
+              <button onClick={() => setShowVoiceModal(true)} aria-label="Bol kar entry karein"
+                className="flex items-center justify-center w-12 h-12 bg-rose-600 text-white rounded-full shadow-lg shrink-0">
+                <Mic size={20}/>
+              </button>
+            )}
+            {tab === "bills" ? (
+              <button onClick={() => setShowBillModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
+                <Plus size={18}/> Add bill
+              </button>
+            ) : (
+              <button onClick={() => setShowTxModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
+                <Plus size={18}/> Add entry
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {showTxModal && (
         <TxModal
@@ -278,9 +284,10 @@ function TabBar({ tab, setTab }) {
     { id: "transactions", label: "Transactions", icon: Wallet },
     { id: "bills", label: "Deadlines", icon: Calendar },
     { id: "compare", label: "Compare", icon: TrendingUp },
+    { id: "vault", label: "Vault", icon: Lock },
   ];
   return (
-    <div className="grid grid-cols-4 bg-white border-b border-stone-200 sticky top-0 z-10">
+    <div className="grid grid-cols-5 bg-white border-b border-stone-200 sticky top-0 z-10">
       {tabs.map(t => {
         const Icon = t.icon;
         const active = tab === t.id;
