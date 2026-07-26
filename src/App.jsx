@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -65,10 +65,10 @@ const seedTransactions = [
   { id: 8, type: "expense", category: "Rent", amount: 35000, date: "2026-06-02", note: "House rent" },
 ];
 const seedBills = [
-  { id: 1, title: "Internet bill", amount: 3500, dueDate: "2026-07-28", paid: false },
-  { id: 2, title: "Credit card payment", amount: 15000, dueDate: "2026-07-25", paid: false },
-  { id: 3, title: "Electricity bill", amount: 8200, dueDate: "2026-08-05", paid: false },
-  { id: 4, title: "Mobile bill", amount: 1500, dueDate: "2026-07-15", paid: true },
+  { id: 1, type: "bill", title: "Internet bill", amount: 3500, dueDate: "2026-07-28", paid: false, recurring: null },
+  { id: 2, type: "bill", title: "Credit card payment", amount: 15000, dueDate: "2026-07-25", paid: false, recurring: null },
+  { id: 3, type: "bill", title: "Electricity bill", amount: 8200, dueDate: "2026-08-05", paid: false, recurring: null },
+  { id: 4, type: "bill", title: "Mobile bill", amount: 1500, dueDate: "2026-07-15", paid: true, recurring: null },
 ];
 
 export default function App() {
@@ -140,10 +140,36 @@ function BudgetTracker({ uid, userEmail }) {
       .catch(e => console.error("Failed to save budget data:", e));
   }, [transactions, bills, incomeHeads, expenseHeads, loaded, uid]);
 
+  // Show a browser notification (if permitted) for anything due within 3 days or overdue.
+  useEffect(() => {
+    if (!loaded) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const due = bills.filter(b => !b.paid && daysUntil(b.dueDate) <= 3);
+    if (due.length === 0) return;
+    const alreadyShown = sessionStorage.getItem("reminders-shown-" + todayStr());
+    if (alreadyShown) return;
+    due.slice(0, 4).forEach(b => {
+      const days = daysUntil(b.dueDate);
+      const label = b.type === "maintenance" ? "Maintenance reminder" : "Payment due";
+      const when = days < 0 ? `${Math.abs(days)} din pehle se due tha` : days === 0 ? "Aaj due hai" : `${days} din mein due hai`;
+      try { new Notification(`${label}: ${b.title}`, { body: when, icon: "/logo.png" }); } catch {}
+    });
+    sessionStorage.setItem("reminders-shown-" + todayStr(), "1");
+  }, [bills, loaded]);
+
   const addTransaction = (tx) => setTransactions(prev => [{ ...tx, id: Date.now() }, ...prev]);
   const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
   const addBill = (b) => setBills(prev => [{ ...b, id: Date.now(), paid: false }, ...prev]);
-  const toggleBillPaid = (id) => setBills(prev => prev.map(b => b.id === id ? { ...b, paid: !b.paid } : b));
+  const toggleBillPaid = (id) => setBills(prev => prev.map(b => {
+    if (b.id !== id) return b;
+    if (b.type === "maintenance" && b.recurring) {
+      // Recurring maintenance: rolling it forward instead of marking permanently done
+      const next = new Date(todayStr());
+      next.setDate(next.getDate() + Number(b.recurring));
+      return { ...b, dueDate: next.toISOString().slice(0, 10), lastDone: todayStr(), paid: false };
+    }
+    return { ...b, paid: !b.paid };
+  }));
   const deleteBill = (id) => setBills(prev => prev.filter(b => b.id !== id));
 
   const addHead = (type, name) => {
@@ -353,21 +379,36 @@ function daysUntil(dateStr) {
   return Math.round(diff);
 }
 
+const RECURRING_LABELS = { 30: "monthly", 90: "every 3 months", 180: "every 6 months", 365: "yearly" };
+
 function BillRow({ bill, onToggle, onDelete, compact }) {
   const days = daysUntil(bill.dueDate);
   const overdue = !bill.paid && days < 0;
   const soon = !bill.paid && days >= 0 && days <= 3;
+  const isMaintenance = bill.type === "maintenance";
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         {!compact && (
-          <button onClick={() => onToggle(bill.id)} className={bill.paid ? "text-emerald-600" : "text-stone-300"}>
-            <CheckCircle2 size={20}/>
-          </button>
+          isMaintenance && bill.recurring ? (
+            <button onClick={() => onToggle(bill.id)} title="Mark done — repeats automatically" className="text-stone-300 hover:text-emerald-600">
+              <RotateCw size={18}/>
+            </button>
+          ) : (
+            <button onClick={() => onToggle(bill.id)} className={bill.paid ? "text-emerald-600" : "text-stone-300"}>
+              <CheckCircle2 size={20}/>
+            </button>
+          )
         )}
         <div>
-          <p className={`text-sm font-medium ${bill.paid ? "line-through text-stone-400" : ""}`}>{bill.title}</p>
-          <p className="text-xs text-stone-400">{fmt(bill.amount)} &middot; due {bill.dueDate}</p>
+          <div className="flex items-center gap-1.5">
+            {isMaintenance && <Wrench size={12} className="text-stone-400 shrink-0" />}
+            <p className={`text-sm font-medium ${bill.paid ? "line-through text-stone-400" : ""}`}>{bill.title}</p>
+          </div>
+          <p className="text-xs text-stone-400">
+            {bill.amount > 0 ? `${fmt(bill.amount)} · ` : ""}due {bill.dueDate}
+            {isMaintenance && bill.recurring && ` · ${RECURRING_LABELS[bill.recurring] || `every ${bill.recurring}d`}`}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -435,15 +476,37 @@ function Transactions({ transactions, onDelete }) {
 
 function Bills({ bills, onToggle, onDelete }) {
   const sorted = [...bills].sort((a,b) => (a.paid - b.paid) || a.dueDate.localeCompare(b.dueDate));
+  const [permission, setPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+
+  const enableNotifications = async () => {
+    if (typeof Notification === "undefined") return;
+    const result = await Notification.requestPermission();
+    setPermission(result);
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-5">
-      {sorted.length === 0 ? (
-        <p className="text-sm text-stone-400 text-center py-6">No bills added yet.</p>
-      ) : (
-        <div className="space-y-4">
-          {sorted.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} />)}
-        </div>
+    <div className="space-y-3">
+      {permission === "default" && (
+        <button onClick={enableNotifications}
+          className="w-full flex items-center gap-2 bg-white border border-stone-200 rounded-2xl p-3.5 text-left hover:border-stone-300">
+          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+            <Bell size={15} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-stone-700">Reminders ke notifications on karein</p>
+            <p className="text-[11px] text-stone-400">Jab bill ya maintenance due ho to alert milega</p>
+          </div>
+        </button>
       )}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+        {sorted.length === 0 ? (
+          <p className="text-sm text-stone-400 text-center py-6">No bills added yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {sorted.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} />)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -699,26 +762,82 @@ function VoiceModal({ incomeHeads, expenseHeads, onClose, onSave }) {
   );
 }
 
+const MAINTENANCE_PRESETS = ["Engine oil change", "Car service", "Tyre change", "Insurance renewal", "Filter change", "Custom"];
+const RECURRING_OPTIONS = [
+  { label: "Never (one-time)", value: "" },
+  { label: "Every month", value: 30 },
+  { label: "Every 3 months", value: 90 },
+  { label: "Every 6 months", value: 180 },
+  { label: "Every year", value: 365 },
+];
+
 function BillModal({ onClose, onSave }) {
+  const [type, setType] = useState("bill");
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState(todayStr());
+  const [recurring, setRecurring] = useState("");
+
+  const submit = () => {
+    if (!title.trim()) return;
+    if (type === "bill" && (!amount || parseFloat(amount) <= 0)) return;
+    onSave({
+      type,
+      title: title.trim(),
+      amount: amount ? parseFloat(amount) : 0,
+      dueDate,
+      recurring: type === "maintenance" && recurring ? Number(recurring) : null,
+    });
+  };
 
   return (
-    <Modal onClose={onClose} title="Add payment deadline">
-      <Field label="Bill title">
-        <input type="text" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Internet bill" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
-      </Field>
-      <Field label="Amount">
+    <Modal onClose={onClose} title={type === "maintenance" ? "Add maintenance reminder" : "Add payment deadline"}>
+      <div className="flex gap-2 mb-4">
+        {[{ id: "bill", label: "Bill payment" }, { id: "maintenance", label: "Maintenance" }].map(t => (
+          <button key={t.id} onClick={() => { setType(t.id); setTitle(""); }}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${type === t.id ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {type === "maintenance" ? (
+        <Field label="What needs attention?">
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {MAINTENANCE_PRESETS.map(p => (
+              <button key={p} onClick={() => setTitle(p === "Custom" ? "" : p)}
+                className={`text-xs px-2.5 py-1.5 rounded-full border ${title === p ? "bg-stone-900 text-white border-stone-900" : "bg-white border-stone-200 text-stone-600"}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Engine oil change"
+            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        </Field>
+      ) : (
+        <Field label="Bill title">
+          <input type="text" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Internet bill" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        </Field>
+      )}
+
+      <Field label={type === "maintenance" ? "Amount (optional)" : "Amount"}>
         <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
       <Field label="Due date">
         <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
+      {type === "maintenance" && (
+        <Field label="Repeat">
+          <select value={recurring} onChange={e => setRecurring(e.target.value)}
+            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+            {RECURRING_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
+          </select>
+        </Field>
+      )}
       <button
-        onClick={() => { if(!title || !amount || parseFloat(amount)<=0) return; onSave({ title, amount: parseFloat(amount), dueDate }); }}
+        onClick={submit}
         className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
-        Add deadline
+        {type === "maintenance" ? "Add reminder" : "Add deadline"}
       </button>
     </Modal>
   );
