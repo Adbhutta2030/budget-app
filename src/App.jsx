@@ -246,24 +246,25 @@ function BudgetTracker({ uid, userEmail }) {
 
 function Header({ onOpenHeads, userEmail }) {
   return (
-    <div className="bg-stone-900 text-white px-4 sm:px-5 pt-5 pb-5 flex items-start justify-between gap-3">
+    <div className="bg-gradient-to-r from-[#0a1628] to-[#0f2140] text-white px-4 sm:px-5 pt-5 pb-5 flex items-start justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/95 flex items-center justify-center p-1.5 shrink-0 ring-1 ring-white/10">
-          <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+        <div className="relative shrink-0">
+          <div className="absolute inset-0 bg-[#d4af5f]/20 blur-lg rounded-full"></div>
+          <img src={logo} alt="Logo" className="relative h-9 sm:h-10 w-auto object-contain" />
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-stone-400 text-[10px] sm:text-xs font-medium tracking-wide uppercase">
+          <div className="flex items-center gap-1.5 text-[#8fa5c4] text-[10px] sm:text-xs font-medium tracking-wide uppercase">
             <Wallet size={12}/> Personal budget
           </div>
           <h1 className="text-lg sm:text-xl font-medium truncate">My finances</h1>
-          {userEmail && <p className="text-[11px] text-stone-400 truncate">{userEmail}</p>}
+          {userEmail && <p className="text-[11px] text-[#5c7398] truncate">{userEmail}</p>}
         </div>
       </div>
       <div className="flex flex-col items-end gap-2 mt-1 shrink-0">
-        <button onClick={onOpenHeads} className="flex items-center gap-1.5 text-stone-300 text-xs border border-stone-700 rounded-full px-2.5 sm:px-3 py-1.5 hover:text-white hover:border-stone-500 whitespace-nowrap">
+        <button onClick={onOpenHeads} className="flex items-center gap-1.5 text-[#8fa5c4] text-xs border border-[#d4af5f]/25 rounded-full px-2.5 sm:px-3 py-1.5 hover:text-[#d4af5f] hover:border-[#d4af5f]/60 whitespace-nowrap">
           <Tag size={13}/> Heads
         </button>
-        <button onClick={() => signOut(auth)} className="flex items-center gap-1.5 text-stone-400 text-xs hover:text-white whitespace-nowrap">
+        <button onClick={() => signOut(auth)} className="flex items-center gap-1.5 text-[#5c7398] text-xs hover:text-[#d4af5f] whitespace-nowrap">
           <LogOut size={12}/> Log out
         </button>
       </div>
