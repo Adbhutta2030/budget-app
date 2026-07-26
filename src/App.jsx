@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw, Users } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Login from "./Login";
 import Vault from "./Vault";
+import Ledger from "./Ledger";
 import logo from "./logo.png";
 
 const PALETTE = ["#D97748","#4A7C8C","#8B5FA3","#C9A227","#B8555A","#3F8F6E","#5B6FBE","#BF7E3D","#7C7C74","#6B9B7A","#A2588F","#4F8FBE"];
@@ -222,9 +223,12 @@ function BudgetTracker({ uid, userEmail }) {
         {tab === "vault" && (
           <Vault uid={uid} />
         )}
+        {tab === "ledger" && (
+          <Ledger uid={uid} />
+        )}
       </div>
 
-      {tab !== "vault" && (
+      {tab !== "vault" && tab !== "ledger" && (
         <div className="fixed bottom-5 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex justify-end items-center gap-2 pointer-events-auto">
             {tab !== "bills" && (
@@ -311,17 +315,18 @@ function TabBar({ tab, setTab }) {
     { id: "bills", label: "Deadlines", icon: Calendar },
     { id: "compare", label: "Compare", icon: TrendingUp },
     { id: "vault", label: "Vault", icon: Lock },
+    { id: "ledger", label: "Khata", icon: Users },
   ];
   return (
-    <div className="grid grid-cols-5 bg-white border-b border-stone-200 sticky top-0 z-10">
+    <div className="grid grid-cols-6 bg-white border-b border-stone-200 sticky top-0 z-10">
       {tabs.map(t => {
         const Icon = t.icon;
         const active = tab === t.id;
         return (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] sm:text-xs font-medium border-b-2 transition-colors ${active ? "border-stone-900 text-stone-900" : "border-transparent text-stone-400"}`}>
-            <Icon size={16} className="sm:hidden" />
-            <Icon size={17} className="hidden sm:block" />
+            <Icon size={15} className="sm:hidden" />
+            <Icon size={16} className="hidden sm:block" />
             <span className="truncate w-full text-center leading-tight">{t.label}</span>
           </button>
         );
