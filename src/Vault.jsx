@@ -1,19 +1,29 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy } from "firebase/firestore";
-import { Plus, X, Trash2, FileText, Lock, Download, ImageOff } from "lucide-react";
+import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { Plus, X, Trash2, FileText, Lock, Download } from "lucide-react";
+import VoiceField from "./VoiceField";
 
-const VAULT_CATEGORIES = [
+const DEFAULT_VAULT_CATEGORIES = [
   { id: "CNIC", label: "CNIC", color: "#4A7C8C" },
   { id: "Passport", label: "Passport", color: "#8B5FA3" },
   { id: "Passport photo", label: "Passport size photo", color: "#B8555A" },
   { id: "Vehicle documents", label: "Gari k documents", color: "#3F8F6E" },
   { id: "Medical report", label: "Medical report", color: "#BF7E3D" },
-  { id: "Other", label: "Other", color: "#7C7C74" },
 ];
+const PALETTE = ["#D97748", "#4A7C8C", "#8B5FA3", "#C9A227", "#B8555A", "#3F8F6E", "#5B6FBE", "#BF7E3D", "#7C7C74", "#6B9B7A"];
 
-function categoryMeta(id) {
-  return VAULT_CATEGORIES.find(c => c.id === id) || VAULT_CATEGORIES[VAULT_CATEGORIES.length - 1];
+function colorForName(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+function categoryMeta(id, customCategories = []) {
+  const found = DEFAULT_VAULT_CATEGORIES.find(c => c.id === id);
+  if (found) return found;
+  if (customCategories.includes(id)) return { id, label: id, color: colorForName(id) };
+  return { id: id || "Other", label: id || "Other", color: colorForName(id || "Other") };
 }
 
 // Compress an image file down to a reasonable size and return a base64 data URL.
@@ -52,6 +62,7 @@ function readAsDataUrl(file) {
 
 export default function Vault({ uid }) {
   const [items, setItems] = useState([]);
+  const [customCategories, setCustomCategories] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [viewing, setViewing] = useState(null);
@@ -62,12 +73,25 @@ export default function Vault({ uid }) {
         const q = query(collection(db, "budgets", uid, "vault"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const catSnap = await getDoc(doc(db, "budgets", uid, "meta", "vaultCategories"));
+        setCustomCategories(catSnap.exists() ? (catSnap.data().list || []) : []);
       } catch (e) {
         console.error("Failed to load vault items:", e);
       }
       setLoaded(true);
     })();
   }, [uid]);
+
+  const addCustomCategory = async (name) => {
+    if (customCategories.includes(name)) return;
+    const next = [...customCategories, name];
+    setCustomCategories(next);
+    try {
+      await setDoc(doc(db, "budgets", uid, "meta", "vaultCategories"), { list: next });
+    } catch (e) {
+      console.error("Failed to save category:", e);
+    }
+  };
 
   const addItem = async (data) => {
     const ref = doc(collection(db, "budgets", uid, "vault"));
@@ -104,7 +128,7 @@ export default function Vault({ uid }) {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {items.map(item => {
-            const meta = categoryMeta(item.category);
+            const meta = categoryMeta(item.category, customCategories);
             const isImage = item.mimeType?.startsWith("image/");
             return (
               <button key={item.id} onClick={() => setViewing(item)}
@@ -137,7 +161,14 @@ export default function Vault({ uid }) {
         </div>
       </div>
 
-      {showAdd && <AddVaultModal onClose={() => setShowAdd(false)} onSave={async (data) => { await addItem(data); setShowAdd(false); }} />}
+      {showAdd && (
+        <AddVaultModal
+          customCategories={customCategories}
+          onAddCategory={addCustomCategory}
+          onClose={() => setShowAdd(false)}
+          onSave={async (data) => { await addItem(data); setShowAdd(false); }}
+        />
+      )}
 
       {viewing && (
         <ViewVaultModal item={viewing} onClose={() => setViewing(null)} onDelete={() => deleteItem(viewing.id)} />
@@ -146,13 +177,25 @@ export default function Vault({ uid }) {
   );
 }
 
-function AddVaultModal({ onClose, onSave }) {
-  const [category, setCategory] = useState(VAULT_CATEGORIES[0].id);
+function AddVaultModal({ customCategories, onAddCategory, onClose, onSave }) {
+  const allCategories = [...DEFAULT_VAULT_CATEGORIES.map(c => c.id), ...customCategories];
+  const [category, setCategory] = useState(allCategories[0] || "");
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const confirmNewCategory = () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    onAddCategory(name);
+    setCategory(name);
+    setAddingCategory(false);
+    setNewCategoryName("");
+  };
 
   const handleFile = async (f) => {
     setError("");
@@ -184,7 +227,7 @@ function AddVaultModal({ onClose, onSave }) {
   };
 
   const save = async () => {
-    if (!title.trim() || !preview) return;
+    if (!title.trim() || !preview || !category) return;
     setBusy(true);
     try {
       await onSave({ category, title: title.trim(), dataUrl: preview, mimeType: file.mimeType });
@@ -196,14 +239,32 @@ function AddVaultModal({ onClose, onSave }) {
   return (
     <Modal onClose={onClose} title="Document add karein">
       <Field label="Category">
-        <select value={category} onChange={e => setCategory(e.target.value)}
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
-          {VAULT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
+        {!addingCategory ? (
+          <div className="flex gap-2">
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+              {allCategories.map(id => {
+                const meta = categoryMeta(id, customCategories);
+                return <option key={id} value={id}>{meta.label}</option>;
+              })}
+            </select>
+            <button onClick={() => setAddingCategory(true)} type="button"
+              className="px-3 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400">
+              <Plus size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)}
+              placeholder="Nayi category ka naam" autoFocus
+              className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+            <button onClick={confirmNewCategory} type="button" className="px-3 bg-stone-900 text-white rounded-lg text-xs font-medium">Add</button>
+            <button onClick={() => { setAddingCategory(false); setNewCategoryName(""); }} type="button" className="px-2 text-stone-400"><X size={16} /></button>
+          </div>
+        )}
       </Field>
       <Field label="Title">
-        <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. CNIC front side"
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        <VoiceField value={title} onChange={setTitle} placeholder="e.g. CNIC front side" />
       </Field>
       <Field label="File (photo ya PDF)">
         <input type="file" accept="image/*,application/pdf" onChange={e => handleFile(e.target.files?.[0])}
@@ -216,7 +277,7 @@ function AddVaultModal({ onClose, onSave }) {
       {preview && file?.mimeType === "application/pdf" && (
         <p className="text-xs text-emerald-700 mb-3">✓ PDF taiyar hai save karne ke liye.</p>
       )}
-      <button onClick={save} disabled={!title.trim() || !preview || busy}
+      <button onClick={save} disabled={!title.trim() || !preview || !category || busy}
         className="w-full bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
         {busy ? "Saving..." : "Save document"}
       </button>
