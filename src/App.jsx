@@ -7,7 +7,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import Login from "./Login";
 import Vault from "./Vault";
 import Ledger from "./Ledger";
-import VoiceField from "./VoiceField";
+import VoiceField, { MicButton, parseSpokenAmount } from "./VoiceField";
 import MbtLogo from "./Logo";
 
 const PALETTE = ["#D97748","#4A7C8C","#8B5FA3","#C9A227","#B8555A","#3F8F6E","#5B6FBE","#BF7E3D","#7C7C74","#6B9B7A","#A2588F","#4F8FBE"];
@@ -319,8 +319,8 @@ function TabBar({ tab, setTab }) {
     { id: "transactions", label: "Transactions", icon: Wallet },
     { id: "bills", label: "Deadlines", icon: Calendar },
     { id: "compare", label: "Compare", icon: TrendingUp },
-    { id: "vault", label: "Vault", icon: Lock },
-    { id: "ledger", label: "Payments", icon: Users },
+    { id: "vault", label: "Documents", icon: Lock },
+    { id: "ledger", label: "Accounts", icon: Users },
   ];
   return (
     <div className="grid grid-cols-6 bg-white border-b border-stone-200 sticky top-0 z-10">
@@ -613,7 +613,13 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
         ))}
       </div>
       <Field label="Amount">
-        <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        <div className="relative">
+          <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg pl-3 pr-11 py-2 text-sm outline-none focus:border-stone-400" />
+          <MicButton
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center bg-stone-100 text-stone-500"
+            onResult={(text) => { const amt = parseSpokenAmount(text); if (amt != null) setAmount(String(amt)); }}
+          />
+        </div>
       </Field>
       <Field label={type === "income" ? "Income head" : "Expense head"}>
         {heads.length === 0 ? (
@@ -621,9 +627,17 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
             Koi head nahi hai — pehle ek banayein
           </button>
         ) : (
-          <select value={category} onChange={e=>setCategory(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
-            {heads.map(c => <option key={c}>{c}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select value={category} onChange={e=>setCategory(e.target.value)} className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+              {heads.map(c => <option key={c}>{c}</option>)}
+            </select>
+            <MicButton
+              onResult={(text) => {
+                const match = heads.find(h => text.toLowerCase().includes(h.toLowerCase()));
+                if (match) setCategory(match);
+              }}
+            />
+          </div>
         )}
         <button onClick={onManageHeads} className="text-xs text-stone-500 underline mt-1.5">Manage heads</button>
       </Field>
