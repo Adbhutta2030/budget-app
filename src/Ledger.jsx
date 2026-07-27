@@ -1,44 +1,69 @@
 import { useState, useEffect, useMemo } from "react";
 import { db } from "./firebase";
 import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy } from "firebase/firestore";
-import { Plus, X, Trash2, Share2, Download, Users, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Plus, X, Trash2, Share2, Users, ArrowDownLeft, ArrowUpRight, Info } from "lucide-react";
 import { jsPDF } from "jspdf";
+import VoiceField from "./VoiceField";
 
 const fmt = n => "Rs " + Math.round(n).toLocaleString();
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
+function groupKey(person, phone) {
+  const p = person.trim().toLowerCase();
+  const ph = (phone || "").trim();
+  return ph ? `${p}|${ph}` : p;
+}
+
 function buildPeople(entries) {
   const map = {};
   entries.forEach(e => {
-    if (!map[e.person]) map[e.person] = { name: e.person, gave: 0, took: 0, entries: [] };
-    map[e.person][e.direction === "gave" ? "gave" : "took"] += e.amount;
-    map[e.person].entries.push(e);
+    const key = groupKey(e.person, e.phone);
+    if (!map[key]) map[key] = { key, name: e.person, phone: e.phone || "", gave: 0, took: 0, entries: [] };
+    map[key][e.direction === "gave" ? "gave" : "took"] += e.amount;
+    map[key].entries.push(e);
   });
-  return Object.values(map).map(p => ({
+  const people = Object.values(map);
+
+  // Detect name collisions (same display name, different key = different actual person)
+  const nameCounts = {};
+  people.forEach(p => {
+    const n = p.name.trim().toLowerCase();
+    nameCounts[n] = (nameCounts[n] || 0) + 1;
+  });
+
+  return people.map(p => ({
     ...p,
     balance: p.gave - p.took,
-    entries: p.entries.sort((a, b) => a.date.localeCompare(b.date)),
+    ambiguous: nameCounts[p.name.trim().toLowerCase()] > 1,
+    entries: p.entries.sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || "").localeCompare(b.createdAt || "")),
   })).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
 }
 
-function generateStatementPdf(personName, entries, balance) {
+function displayLabel(p) {
+  if (p.ambiguous && p.phone) return `${p.name} (${p.phone})`;
+  if (p.ambiguous) return `${p.name} (no phone)`;
+  return p.name;
+}
+
+function generateStatementPdf(person, entries, balance) {
   const docPdf = new jsPDF();
   let y = 20;
   docPdf.setFontSize(16);
-  docPdf.text("Hisaab / Statement", 14, y);
+  docPdf.text("Payments & Receipts Statement", 14, y);
   y += 8;
   docPdf.setFontSize(11);
-  docPdf.text(`Name: ${personName}`, 14, y);
+  docPdf.text(`Name: ${person.name}`, 14, y);
   y += 6;
-  docPdf.text(`Date: ${todayStr()}`, 14, y);
+  if (person.phone) { docPdf.text(`Phone: ${person.phone}`, 14, y); y += 6; }
+  docPdf.text(`Statement date: ${todayStr()}`, 14, y);
   y += 10;
 
   docPdf.setFontSize(10);
   docPdf.setFont(undefined, "bold");
   docPdf.text("Date", 14, y);
   docPdf.text("Detail", 44, y);
-  docPdf.text("Diya", 130, y, { align: "right" });
-  docPdf.text("Liya", 160, y, { align: "right" });
+  docPdf.text("Payment", 130, y, { align: "right" });
+  docPdf.text("Receipt", 160, y, { align: "right" });
   docPdf.text("Balance", 195, y, { align: "right" });
   docPdf.setFont(undefined, "normal");
   y += 3;
@@ -46,7 +71,7 @@ function generateStatementPdf(personName, entries, balance) {
   y += 6;
 
   let running = 0;
-  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || "").localeCompare(b.createdAt || ""));
   sorted.forEach(e => {
     if (y > 275) { docPdf.addPage(); y = 20; }
     running += e.direction === "gave" ? e.amount : -e.amount;
@@ -58,27 +83,32 @@ function generateStatementPdf(personName, entries, balance) {
     y += 7;
   });
 
+  if (Math.round(running) !== Math.round(balance)) {
+    // safety check — should always match, but guard against silent drift
+    running = balance;
+  }
+
   y += 6;
   docPdf.line(14, y, 196, y);
   y += 8;
   docPdf.setFontSize(12);
   docPdf.setFont(undefined, "bold");
   const summary = balance >= 0
-    ? `${personName} ne aap ko ${fmt(Math.abs(balance))} dena hai`
-    : `Aap ne ${personName} ko ${fmt(Math.abs(balance))} dena hai`;
+    ? `${person.name} ne aap ko ${fmt(Math.abs(balance))} dena hai`
+    : `Aap ne ${person.name} ko ${fmt(Math.abs(balance))} dena hai`;
   docPdf.text(summary, 14, y);
 
   return docPdf.output("blob");
 }
 
-async function shareStatement(personName, entries, balance) {
-  const blob = generateStatementPdf(personName, entries, balance);
-  const filename = `${personName.replace(/\s+/g, "_")}_hisaab.pdf`;
+async function shareStatement(person, entries, balance) {
+  const blob = generateStatementPdf(person, entries, balance);
+  const filename = `${person.name.replace(/\s+/g, "_")}_statement.pdf`;
   const file = new File([blob], filename, { type: "application/pdf" });
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: `${personName} - Hisaab`, text: `${personName} ka hisaab attached hai.` });
+      await navigator.share({ files: [file], title: `${person.name} - Statement`, text: `${person.name} ka statement attached hai.` });
       return;
     } catch {
       // user cancelled or share failed — fall through to download
@@ -91,8 +121,8 @@ async function shareStatement(personName, entries, balance) {
   URL.revokeObjectURL(url);
 
   const summary = balance >= 0
-    ? `${personName} ne mera ${fmt(Math.abs(balance))} dena hai.`
-    : `Mera ${personName} ka ${fmt(Math.abs(balance))} baqaya hai.`;
+    ? `${person.name} ne mera ${fmt(Math.abs(balance))} dena hai.`
+    : `Mera ${person.name} ka ${fmt(Math.abs(balance))} baqaya hai.`;
   const msg = encodeURIComponent(`${summary} PDF download ho gayi hai, WhatsApp chat mein attach kar dein.`);
   window.open(`https://wa.me/?text=${msg}`, "_blank");
 }
@@ -101,7 +131,7 @@ export default function Ledger({ uid }) {
   const [entries, setEntries] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [openPerson, setOpenPerson] = useState(null);
+  const [openKey, setOpenKey] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -131,10 +161,11 @@ export default function Ledger({ uid }) {
   };
 
   if (!loaded) {
-    return <div className="w-full min-h-[300px] flex items-center justify-center text-sm text-stone-400">Loading khata...</div>;
+    return <div className="w-full min-h-[300px] flex items-center justify-center text-sm text-stone-400">Loading...</div>;
   }
 
-  const openPersonData = openPerson ? people.find(p => p.name === openPerson) : null;
+  const openPerson = openKey ? people.find(p => p.key === openKey) : null;
+  const existingNames = [...new Set(people.map(p => p.name))];
 
   return (
     <div className="space-y-4 pb-24">
@@ -143,25 +174,28 @@ export default function Ledger({ uid }) {
           <Users size={16} className="text-[#d4af5f]" />
         </div>
         <p className="text-xs text-stone-500">
-          Lena-dena ka hisaab yahan rakhein — har shaks ka khata alag se track hota hai.
+          Payments &amp; Receipts — lena-dena ka hisaab yahan rakhein, har shaks ka alag record.
         </p>
       </div>
 
       {people.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-8 text-center">
-          <p className="text-sm text-stone-400">Koi khata nahi hai abhi. Neeche + button se add karein.</p>
+          <p className="text-sm text-stone-400">Koi record nahi hai abhi. Neeche + button se add karein.</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 p-2">
           {people.map(p => (
-            <button key={p.name} onClick={() => setOpenPerson(p.name)}
+            <button key={p.key} onClick={() => setOpenKey(p.key)}
               className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 text-left">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0" style={{ background: p.balance >= 0 ? "#3F8F6E" : "#B8555A" }}>
                   {p.name[0]?.toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{p.name}</p>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    {displayLabel(p)}
+                    {p.ambiguous && <Info size={12} className="text-amber-500" />}
+                  </p>
                   <p className="text-xs text-stone-400">{p.entries.length} entries</p>
                 </div>
               </div>
@@ -186,60 +220,74 @@ export default function Ledger({ uid }) {
 
       {showAdd && (
         <AddLedgerModal
-          people={people.map(p => p.name)}
+          existingNames={existingNames}
+          people={people}
           onClose={() => setShowAdd(false)}
           onSave={async (data) => { await addEntry(data); setShowAdd(false); }}
         />
       )}
 
-      {openPersonData && (
+      {openPerson && (
         <PersonModal
-          person={openPersonData}
-          onClose={() => setOpenPerson(null)}
+          person={openPerson}
+          onClose={() => setOpenKey(null)}
           onDelete={deleteEntry}
-          onShare={() => shareStatement(openPersonData.name, openPersonData.entries, openPersonData.balance)}
+          onShare={() => shareStatement(openPerson, openPerson.entries, openPerson.balance)}
         />
       )}
     </div>
   );
 }
 
-function AddLedgerModal({ people, onClose, onSave }) {
+function AddLedgerModal({ existingNames, people, onClose, onSave }) {
   const [person, setPerson] = useState("");
+  const [phone, setPhone] = useState("");
   const [direction, setDirection] = useState("gave");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const nameMatches = person.trim() && existingNames.some(n => n.toLowerCase() === person.trim().toLowerCase());
+  const matchCount = person.trim() ? people.filter(p => p.name.toLowerCase() === person.trim().toLowerCase()).length : 0;
+
   const save = async () => {
     if (!person.trim() || !amount || parseFloat(amount) <= 0) return;
     setBusy(true);
     try {
-      await onSave({ person: person.trim(), direction, amount: parseFloat(amount), date, note: note.trim() });
+      await onSave({ person: person.trim(), phone: phone.trim(), direction, amount: parseFloat(amount), date, note: note.trim() });
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Modal onClose={onClose} title="Lena-dena add karein">
+    <Modal onClose={onClose} title="Payment / Receipt add karein">
       <div className="flex gap-2 mb-4">
         <button onClick={() => setDirection("gave")}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "gave" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}>
-          <ArrowUpRight size={14} /> Maine diya
+          <ArrowUpRight size={14} /> Payment (Diya)
         </button>
         <button onClick={() => setDirection("took")}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "took" ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-500"}`}>
-          <ArrowDownLeft size={14} /> Maine liya
+          <ArrowDownLeft size={14} /> Receipt (Liya)
         </button>
       </div>
       <Field label="Kis ka naam?">
-        <input type="text" list="ledger-people" value={person} onChange={e => setPerson(e.target.value)} placeholder="e.g. Ahmed"
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        <VoiceField value={person} onChange={setPerson} placeholder="e.g. Ahmed" listId="ledger-people" />
         <datalist id="ledger-people">
-          {people.map(p => <option key={p} value={p} />)}
+          {existingNames.map(n => <option key={n} value={n} />)}
         </datalist>
+      </Field>
+      {nameMatches && matchCount >= 1 && (
+        <div className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-2 mb-3 flex items-start gap-1.5">
+          <Info size={13} className="shrink-0 mt-0.5" />
+          <span>Is naam se pehle bhi record(s) hain. Agar ye koi doosra shaks hai (same naam), to neeche phone number zaroor dalein taake data mix na ho.</span>
+        </div>
+      )}
+      <Field label="Phone number (agar naam repeat ho to zaroori)">
+        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 0301-1234567"
+          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
       <Field label="Amount">
         <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0"
@@ -250,8 +298,7 @@ function AddLedgerModal({ people, onClose, onSave }) {
           className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
       <Field label="Note (optional)">
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Udhaar for shopping"
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        <VoiceField value={note} onChange={setNote} placeholder="e.g. Udhaar for shopping" />
       </Field>
       <button onClick={save} disabled={busy || !person.trim() || !amount}
         className="w-full bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
@@ -263,10 +310,11 @@ function AddLedgerModal({ people, onClose, onSave }) {
 
 function PersonModal({ person, onClose, onDelete, onShare }) {
   return (
-    <Modal onClose={onClose} title={person.name}>
+    <Modal onClose={onClose} title={displayLabel(person)}>
       <div className={`rounded-xl p-3 mb-4 ${person.balance >= 0 ? "bg-emerald-50" : "bg-rose-50"}`}>
         <p className="text-xs text-stone-500 mb-0.5">{person.balance >= 0 ? `${person.name} ne aap ko dena hai` : `Aap ne ${person.name} ko dena hai`}</p>
         <p className={`text-xl font-medium ${person.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{fmt(Math.abs(person.balance))}</p>
+        {person.phone && <p className="text-[11px] text-stone-400 mt-1">{person.phone}</p>}
       </div>
 
       <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
@@ -274,7 +322,7 @@ function PersonModal({ person, onClose, onDelete, onShare }) {
           <div key={e.id} className="flex items-center justify-between text-sm border-b border-stone-100 pb-2">
             <div>
               <p className={e.direction === "gave" ? "text-emerald-700" : "text-rose-700"}>
-                {e.direction === "gave" ? "Diya" : "Liya"} &middot; {fmt(e.amount)}
+                {e.direction === "gave" ? "Payment" : "Receipt"} &middot; {fmt(e.amount)}
               </p>
               <p className="text-xs text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
             </div>
