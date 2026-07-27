@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
-import { Plus, X, Trash2, FileText, Lock, Download, Camera } from "lucide-react";
+import { Plus, X, Trash2, FileText, Lock, Download, Camera, Share2 } from "lucide-react";
 import VoiceField from "./VoiceField";
 
 const DEFAULT_VAULT_CATEGORIES = [
@@ -60,6 +60,35 @@ function readAsDataUrl(file) {
   });
 }
 
+function dataUrlToFile(dataUrl, filename, mimeType) {
+  const arr = dataUrl.split(",");
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  return new File([u8arr], filename, { type: mimeType });
+}
+
+async function shareDocument(item) {
+  const ext = item.mimeType === "application/pdf" ? "pdf" : "jpg";
+  const filename = `${item.title.replace(/\s+/g, "_")}.${ext}`;
+  const file = dataUrlToFile(item.dataUrl, filename, item.mimeType);
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: item.title, text: item.title });
+      return;
+    } catch {
+      // user cancelled or share failed — fall through to download
+    }
+  }
+
+  const a = document.createElement("a");
+  a.href = item.dataUrl; a.download = filename; a.click();
+  const msg = encodeURIComponent(`${item.title} — file download ho gayi hai, WhatsApp chat mein attach kar dein.`);
+  window.open(`https://wa.me/?text=${msg}`, "_blank");
+}
+
 export default function Vault({ uid }) {
   const [items, setItems] = useState([]);
   const [customCategories, setCustomCategories] = useState([]);
@@ -112,6 +141,7 @@ export default function Vault({ uid }) {
 
   return (
     <div className="space-y-4 pb-24">
+      <h2 className="text-lg font-medium text-stone-800">Personal Documents</h2>
       <div className="bg-white rounded-2xl border border-stone-200 p-4 flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-[#0a1628] flex items-center justify-center shrink-0">
           <Lock size={16} className="text-[#d4af5f]" />
@@ -314,14 +344,18 @@ function ViewVaultModal({ item, onClose, onDelete }) {
         )}
       </div>
       <div className="flex gap-2">
+        <button onClick={() => shareDocument(item)}
+          className="flex-1 flex items-center justify-center gap-2 bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium">
+          <Share2 size={15} /> Share
+        </button>
         <a href={item.dataUrl} download={item.title}
-          className="flex-1 flex items-center justify-center gap-2 bg-stone-100 text-stone-700 py-2.5 rounded-lg text-sm font-medium">
-          <Download size={15} /> Download
+          className="flex items-center justify-center w-11 bg-stone-100 text-stone-700 rounded-lg">
+          <Download size={15} />
         </a>
         {!confirmingDelete ? (
           <button onClick={() => setConfirmingDelete(true)}
-            className="flex-1 flex items-center justify-center gap-2 bg-rose-50 text-rose-600 py-2.5 rounded-lg text-sm font-medium">
-            <Trash2 size={15} /> Delete
+            className="flex items-center justify-center w-11 bg-rose-50 text-rose-600 rounded-lg">
+            <Trash2 size={15} />
           </button>
         ) : (
           <button onClick={onDelete}
