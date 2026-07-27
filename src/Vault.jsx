@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
-import { Plus, X, Trash2, FileText, Lock, Download } from "lucide-react";
+import { Plus, X, Trash2, FileText, Lock, Download, Camera } from "lucide-react";
 import VoiceField from "./VoiceField";
 
 const DEFAULT_VAULT_CATEGORIES = [
@@ -237,7 +237,7 @@ function AddVaultModal({ customCategories, onAddCategory, onClose, onSave }) {
   };
 
   return (
-    <Modal onClose={onClose} title="Document add karein">
+    <Modal onClose={onClose} title="Add document">
       <Field label="Category">
         {!addingCategory ? (
           <div className="flex gap-2">
@@ -266,9 +266,17 @@ function AddVaultModal({ customCategories, onAddCategory, onClose, onSave }) {
       <Field label="Title">
         <VoiceField value={title} onChange={setTitle} placeholder="e.g. CNIC front side" />
       </Field>
-      <Field label="File (photo ya PDF)">
-        <input type="file" accept="image/*,application/pdf" onChange={e => handleFile(e.target.files?.[0])}
-          className="w-full text-sm text-stone-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-stone-100 file:text-sm file:text-stone-700" />
+      <Field label="File">
+        <div className="flex gap-2">
+          <label className="flex-1 flex items-center justify-center gap-2 bg-stone-100 text-stone-700 text-sm py-2.5 rounded-lg cursor-pointer">
+            <Camera size={15} /> Scan / Camera
+            <input type="file" accept="image/*" capture="environment" onChange={e => handleFile(e.target.files?.[0])} className="hidden" />
+          </label>
+          <label className="flex-1 flex items-center justify-center gap-2 bg-stone-100 text-stone-700 text-sm py-2.5 rounded-lg cursor-pointer">
+            <FileText size={15} /> Choose file
+            <input type="file" accept="image/*,application/pdf" onChange={e => handleFile(e.target.files?.[0])} className="hidden" />
+          </label>
+        </div>
       </Field>
       {error && <p className="text-xs text-rose-600 mb-3">{error}</p>}
       {preview && file?.mimeType?.startsWith("image/") && (
