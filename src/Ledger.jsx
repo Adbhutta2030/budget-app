@@ -49,7 +49,7 @@ function generateStatementPdf(person, entries, balance) {
   const docPdf = new jsPDF();
   let y = 20;
   docPdf.setFontSize(16);
-  docPdf.text("Payments & Receipts Statement", 14, y);
+  docPdf.text("Account Statement", 14, y);
   y += 8;
   docPdf.setFontSize(11);
   docPdf.text(`Name: ${person.name}`, 14, y);
@@ -169,12 +169,13 @@ export default function Ledger({ uid }) {
 
   return (
     <div className="space-y-4 pb-24">
+      <h2 className="text-lg font-medium text-stone-800">Accounts</h2>
       <div className="bg-white rounded-2xl border border-stone-200 p-4 flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-[#0a1628] flex items-center justify-center shrink-0">
           <Users size={16} className="text-[#d4af5f]" />
         </div>
         <p className="text-xs text-stone-500">
-          Payments &amp; Receipts — lena-dena ka hisaab yahan rakhein, har shaks ka alag record.
+          Lena-dena ka hisaab yahan rakhein — har shaks ka alag record.
         </p>
       </div>
 
