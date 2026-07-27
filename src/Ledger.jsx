@@ -63,7 +63,7 @@ function generateStatementPdf(person, entries, balance) {
   docPdf.text("Date", 14, y);
   docPdf.text("Detail", 44, y);
   docPdf.text("Payment", 130, y, { align: "right" });
-  docPdf.text("Receipt", 160, y, { align: "right" });
+  docPdf.text("Received", 160, y, { align: "right" });
   docPdf.text("Balance", 195, y, { align: "right" });
   docPdf.setFont(undefined, "normal");
   y += 3;
@@ -262,7 +262,7 @@ function AddLedgerModal({ existingNames, people, onClose, onSave }) {
   };
 
   return (
-    <Modal onClose={onClose} title="Payment / Receipt add karein">
+    <Modal onClose={onClose} title="Add payment or receipt">
       <div className="flex gap-2 mb-4">
         <button onClick={() => setDirection("gave")}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "gave" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}>
@@ -270,7 +270,7 @@ function AddLedgerModal({ existingNames, people, onClose, onSave }) {
         </button>
         <button onClick={() => setDirection("took")}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "took" ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-500"}`}>
-          <ArrowDownLeft size={14} /> Receipt (Liya)
+          <ArrowDownLeft size={14} /> Received (Liya)
         </button>
       </div>
       <Field label="Kis ka naam?">
@@ -322,7 +322,7 @@ function PersonModal({ person, onClose, onDelete, onShare }) {
           <div key={e.id} className="flex items-center justify-between text-sm border-b border-stone-100 pb-2">
             <div>
               <p className={e.direction === "gave" ? "text-emerald-700" : "text-rose-700"}>
-                {e.direction === "gave" ? "Payment" : "Receipt"} &middot; {fmt(e.amount)}
+                {e.direction === "gave" ? "Payment" : "Received"} &middot; {fmt(e.amount)}
               </p>
               <p className="text-xs text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
             </div>
