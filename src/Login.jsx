@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { auth } from "./firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { Wallet, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import logo from "./logo.png";
+import { Wallet, Mail, Lock, Eye, EyeOff, Phone, Store } from "lucide-react";
+import MbtLogo from "./Logo";
 
 export default function Login() {
   const [mode, setMode] = useState("login"); // 'login' | 'signup'
@@ -14,8 +14,8 @@ export default function Login() {
 
   const submit = async () => {
     setError("");
-    if (!email || !password) { setError("Email aur password dono zaroori hain."); return; }
-    if (password.length < 6) { setError("Password kam az kam 6 characters ka hona chahiye."); return; }
+    if (!email || !password) { setError("Email and password are both required."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setBusy(true);
     try {
       if (mode === "login") {
@@ -25,12 +25,12 @@ export default function Login() {
       }
     } catch (e) {
       const map = {
-        "auth/invalid-credential": "Email ya password ghalat hai.",
-        "auth/email-already-in-use": "Ye email pehle se account rakhta hai — Login try karein.",
-        "auth/weak-password": "Password kamzor hai, kam az kam 6 characters use karein.",
-        "auth/invalid-email": "Email sahi format mein likhein.",
+        "auth/invalid-credential": "Incorrect email or password.",
+        "auth/email-already-in-use": "An account with this email already exists — try logging in.",
+        "auth/weak-password": "Password is too weak, use at least 6 characters.",
+        "auth/invalid-email": "Please enter a valid email address.",
       };
-      setError(map[e.code] || "Kuch ghalat ho gaya. Dobara koshish karein.");
+      setError(map[e.code] || "Something went wrong. Please try again.");
     }
     setBusy(false);
   };
@@ -42,32 +42,44 @@ export default function Login() {
       <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-[#2c5788]/20 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#d4af5f]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="w-full max-w-sm relative z-10">
+      <div className="w-full max-w-sm relative z-10 py-6">
         {/* Logo + brand */}
-        <div className="flex flex-col items-center mb-7 text-center">
-          <div className="relative mb-5 flex items-center justify-center w-24 h-24 rounded-full" style={{ background: "radial-gradient(circle, rgba(212,175,95,0.18) 0%, rgba(212,175,95,0) 70%)" }}>
-            <div className="absolute inset-0 rounded-full border border-[#d4af5f]/25"></div>
-            <img src={logo} alt="Logo" className="relative h-14 w-auto object-contain drop-shadow-[0_4px_18px_rgba(0,0,0,0.5)]" />
+        <div className="flex flex-col items-center mb-5 text-center">
+          <div className="relative mb-4 flex items-center justify-center w-24 h-24 rounded-full" style={{ background: "radial-gradient(circle, rgba(212,175,95,0.18) 0%, rgba(212,175,95,0) 70%)" }}>
+            <MbtLogo size={88} />
           </div>
           <h1 className="text-white text-xl font-semibold tracking-tight">My Budget Tracker</h1>
-          <p className="text-[#8fa5c4] text-xs mt-1.5">Aapki apni, mehfooz, personal finance app</p>
+          <p className="text-[#d4af5f]/80 text-[11px] font-medium tracking-[0.2em] mt-1.5">PLAN &middot; TRACK &middot; SAVE &middot; GROW</p>
+        </div>
+
+        {/* Contact card */}
+        <div className="flex items-center gap-3 bg-white/[0.05] border border-[#d4af5f]/20 rounded-2xl px-4 py-3 mb-5">
+          <div className="w-9 h-9 rounded-full bg-[#d4af5f]/15 flex items-center justify-center shrink-0">
+            <Store size={16} className="text-[#d4af5f]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-white text-sm font-medium truncate">Ad Bhutta &amp; Brothers</p>
+            <div className="flex items-center gap-1 text-[#8fa5c4] text-xs">
+              <Phone size={11} /> By Ad Bhutta &middot; 0321-6101060
+            </div>
+          </div>
         </div>
 
         {/* Card */}
         <div className="w-full bg-white/[0.05] backdrop-blur-xl border border-[#d4af5f]/15 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/40">
           <div className="flex items-center gap-2 text-white mb-1">
             <Wallet size={18} className="text-[#d4af5f]" />
-            <p className="text-base font-medium">{mode === "login" ? "Welcome back" : "Account banayein"}</p>
+            <p className="text-base font-medium">{mode === "login" ? "Welcome back" : "Create your account"}</p>
           </div>
           <p className="text-xs text-[#8fa5c4] mb-6">
-            {mode === "login" ? "Apne account mein login karein" : "Apna naya personal account banayein"}
+            {mode === "login" ? "Sign in to continue your financial journey" : "Set up your new personal account"}
           </p>
 
           <div className="space-y-3 mb-4">
             <div className="relative">
               <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5c7398]" />
               <input
-                type="email" placeholder="Email" value={email}
+                type="email" placeholder="Email address" value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full bg-white/[0.06] border border-[#d4af5f]/15 rounded-xl pl-10 pr-3 py-3 text-sm text-white placeholder-[#5c7398] outline-none focus:border-[#d4af5f]/60 focus:bg-white/[0.09] transition"
               />
@@ -97,7 +109,7 @@ export default function Login() {
           </button>
 
           <p className="text-xs text-[#8fa5c4] text-center mt-5">
-            {mode === "login" ? "Naya account chahiye?" : "Pehle se account hai?"}{" "}
+            {mode === "login" ? "Need an account?" : "Already have an account?"}{" "}
             <button
               onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
               className="text-[#d4af5f] font-medium hover:text-[#e0bd6f]"
@@ -107,10 +119,6 @@ export default function Login() {
           </p>
         </div>
       </div>
-
-      <p className="absolute bottom-6 left-0 right-0 text-center text-[#5c7398] text-xs z-10">
-        By Ad Bhutta &middot; Cell # 0321-6101060
-      </p>
     </div>
   );
 }
