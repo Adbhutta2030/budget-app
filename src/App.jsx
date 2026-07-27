@@ -7,6 +7,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import Login from "./Login";
 import Vault from "./Vault";
 import Ledger from "./Ledger";
+import VoiceField from "./VoiceField";
 import logo from "./logo.png";
 
 const PALETTE = ["#D97748","#4A7C8C","#8B5FA3","#C9A227","#B8555A","#3F8F6E","#5B6FBE","#BF7E3D","#7C7C74","#6B9B7A","#A2588F","#4F8FBE"];
@@ -163,6 +164,10 @@ function BudgetTracker({ uid, userEmail }) {
   const addBill = (b) => setBills(prev => [{ ...b, id: Date.now(), paid: false }, ...prev]);
   const toggleBillPaid = (id) => setBills(prev => prev.map(b => {
     if (b.id !== id) return b;
+    if (b.recurDay) {
+      // Monthly bill tied to a day-of-month: roll forward to next month, same day
+      return { ...b, dueDate: advanceOneMonth(b.dueDate, b.recurDay), lastDone: todayStr(), paid: false };
+    }
     if (b.type === "maintenance" && b.recurring) {
       // Recurring maintenance: rolling it forward instead of marking permanently done
       const next = new Date(todayStr());
@@ -315,7 +320,7 @@ function TabBar({ tab, setTab }) {
     { id: "bills", label: "Deadlines", icon: Calendar },
     { id: "compare", label: "Compare", icon: TrendingUp },
     { id: "vault", label: "Vault", icon: Lock },
-    { id: "ledger", label: "Khata", icon: Users },
+    { id: "ledger", label: "Payments", icon: Users },
   ];
   return (
     <div className="grid grid-cols-6 bg-white border-b border-stone-200 sticky top-0 z-10">
@@ -391,11 +396,12 @@ function BillRow({ bill, onToggle, onDelete, compact }) {
   const overdue = !bill.paid && days < 0;
   const soon = !bill.paid && days >= 0 && days <= 3;
   const isMaintenance = bill.type === "maintenance";
+  const isRecurring = bill.recurDay || (isMaintenance && bill.recurring);
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         {!compact && (
-          isMaintenance && bill.recurring ? (
+          isRecurring ? (
             <button onClick={() => onToggle(bill.id)} title="Mark done — repeats automatically" className="text-stone-300 hover:text-emerald-600">
               <RotateCw size={18}/>
             </button>
@@ -413,6 +419,7 @@ function BillRow({ bill, onToggle, onDelete, compact }) {
           <p className="text-xs text-stone-400">
             {bill.amount > 0 ? `${fmt(bill.amount)} · ` : ""}due {bill.dueDate}
             {isMaintenance && bill.recurring && ` · ${RECURRING_LABELS[bill.recurring] || `every ${bill.recurring}d`}`}
+            {bill.recurDay && ` · har mahine ${bill.recurDay} tareekh`}
           </p>
         </div>
       </div>
@@ -624,7 +631,7 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
         <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
       <Field label="Note (optional)">
-        <input type="text" value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g. Grocery shopping" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        <VoiceField value={note} onChange={setNote} placeholder="e.g. Grocery shopping" />
       </Field>
       <button
         onClick={() => { if(!amount || parseFloat(amount)<=0 || !category) return; onSave({ type, category, amount: parseFloat(amount), date, note }); }}
@@ -776,21 +783,46 @@ const RECURRING_OPTIONS = [
   { label: "Every year", value: 365 },
 ];
 
+// Given a day-of-month (1-31), compute the due date for the current billing cycle:
+// this month if the day hasn't passed yet, otherwise next month. Clamps to the
+// last day of the month for months that are shorter than the chosen day.
+function computeMonthlyDueDate(day) {
+  const now = new Date();
+  let y = now.getFullYear(), m = now.getMonth();
+  if (day < now.getDate()) { m += 1; if (m > 11) { m = 0; y += 1; } }
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return new Date(y, m, Math.min(day, lastDay)).toISOString().slice(0, 10);
+}
+
+// Advance an existing monthly due date forward by exactly one month, keeping the
+// same day-of-month (clamped for shorter months).
+function advanceOneMonth(dateStr, day) {
+  const d = new Date(dateStr);
+  let y = d.getFullYear(), m = d.getMonth() + 1;
+  if (m > 11) { m = 0; y += 1; }
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return new Date(y, m, Math.min(day, lastDay)).toISOString().slice(0, 10);
+}
+
 function BillModal({ onClose, onSave }) {
   const [type, setType] = useState("bill");
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [dateMode, setDateMode] = useState("specific"); // 'specific' | 'monthly'
   const [dueDate, setDueDate] = useState(todayStr());
+  const [recurDay, setRecurDay] = useState(new Date().getDate());
   const [recurring, setRecurring] = useState("");
 
   const submit = () => {
     if (!title.trim()) return;
     if (type === "bill" && (!amount || parseFloat(amount) <= 0)) return;
+    const finalDueDate = type === "bill" && dateMode === "monthly" ? computeMonthlyDueDate(Number(recurDay)) : dueDate;
     onSave({
       type,
       title: title.trim(),
       amount: amount ? parseFloat(amount) : 0,
-      dueDate,
+      dueDate: finalDueDate,
+      recurDay: type === "bill" && dateMode === "monthly" ? Number(recurDay) : null,
       recurring: type === "maintenance" && recurring ? Number(recurring) : null,
     });
   };
@@ -816,28 +848,56 @@ function BillModal({ onClose, onSave }) {
               </button>
             ))}
           </div>
-          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Engine oil change"
-            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          <VoiceField value={title} onChange={setTitle} placeholder="e.g. Engine oil change" />
         </Field>
       ) : (
         <Field label="Bill title">
-          <input type="text" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Internet bill" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          <VoiceField value={title} onChange={setTitle} placeholder="e.g. Internet bill" />
         </Field>
       )}
 
       <Field label={type === "maintenance" ? "Amount (optional)" : "Amount"}>
         <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
-      <Field label="Due date">
-        <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
-      </Field>
-      {type === "maintenance" && (
-        <Field label="Repeat">
-          <select value={recurring} onChange={e => setRecurring(e.target.value)}
-            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
-            {RECURRING_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
-          </select>
+
+      {type === "bill" && (
+        <Field label="Due date">
+          <div className="flex gap-2 mb-2">
+            <button onClick={() => setDateMode("specific")} type="button"
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${dateMode === "specific" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+              Specific date
+            </button>
+            <button onClick={() => setDateMode("monthly")} type="button"
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${dateMode === "monthly" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+              Har mahine is date par
+            </button>
+          </div>
+          {dateMode === "specific" ? (
+            <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          ) : (
+            <div>
+              <select value={recurDay} onChange={e => setRecurDay(e.target.value)}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d} tareekh</option>)}
+              </select>
+              <p className="text-[11px] text-stone-400 mt-1.5">Har mahine is din reminder khud ban jayega — is cycle ke liye due date: {computeMonthlyDueDate(Number(recurDay))}</p>
+            </div>
+          )}
         </Field>
+      )}
+
+      {type === "maintenance" && (
+        <>
+          <Field label="Due date">
+            <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          </Field>
+          <Field label="Repeat">
+            <select value={recurring} onChange={e => setRecurring(e.target.value)}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+              {RECURRING_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
+            </select>
+          </Field>
+        </>
       )}
       <button
         onClick={submit}
