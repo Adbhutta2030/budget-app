@@ -8,7 +8,7 @@ import Login from "./Login";
 import Vault from "./Vault";
 import Ledger from "./Ledger";
 import VoiceField from "./VoiceField";
-import logo from "./logo.png";
+import MbtLogo from "./Logo";
 
 const PALETTE = ["#D97748","#4A7C8C","#8B5FA3","#C9A227","#B8555A","#3F8F6E","#5B6FBE","#BF7E3D","#7C7C74","#6B9B7A","#A2588F","#4F8FBE"];
 function colorFor(name) {
@@ -154,7 +154,7 @@ function BudgetTracker({ uid, userEmail }) {
       const days = daysUntil(b.dueDate);
       const label = b.type === "maintenance" ? "Maintenance reminder" : "Payment due";
       const when = days < 0 ? `${Math.abs(days)} din pehle se due tha` : days === 0 ? "Aaj due hai" : `${days} din mein due hai`;
-      try { new Notification(`${label}: ${b.title}`, { body: when, icon: "/logo.png" }); } catch {}
+      try { new Notification(`${label}: ${b.title}`, { body: when }); } catch {}
     });
     sessionStorage.setItem("reminders-shown-" + todayStr(), "1");
   }, [bills, loaded]);
@@ -291,7 +291,7 @@ function Header({ onOpenHeads, userEmail }) {
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative shrink-0">
           <div className="absolute inset-0 bg-[#d4af5f]/20 blur-lg rounded-full"></div>
-          <img src={logo} alt="Logo" className="relative h-9 sm:h-10 w-auto object-contain" />
+          <MbtLogo size={38} className="relative sm:w-10 sm:h-10" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-[#8fa5c4] text-[10px] sm:text-xs font-medium tracking-wide uppercase">
@@ -698,7 +698,7 @@ function VoiceModal({ incomeHeads, expenseHeads, onClose, onSave }) {
   const heads = type === "income" ? incomeHeads : expenseHeads;
 
   return (
-    <Modal onClose={onClose} title="Bol kar entry karein">
+    <Modal onClose={onClose} title="Add entry by voice">
       {status === "unsupported" && (
         <p className="text-sm text-stone-500">
           Ye feature is browser mein support nahi hai. Chrome browser (Android ya Desktop) try karein.
