@@ -45,9 +45,9 @@ export default function Login() {
       <div className="w-full max-w-sm relative z-10">
         {/* Logo + brand */}
         <div className="flex flex-col items-center mb-7 text-center">
-          <div className="relative mb-5">
-            <div className="absolute inset-0 bg-[#d4af5f]/25 blur-2xl rounded-full"></div>
-            <img src={logo} alt="Logo" className="relative h-16 sm:h-[70px] w-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.4)]" />
+          <div className="relative mb-5 flex items-center justify-center w-24 h-24 rounded-full" style={{ background: "radial-gradient(circle, rgba(212,175,95,0.18) 0%, rgba(212,175,95,0) 70%)" }}>
+            <div className="absolute inset-0 rounded-full border border-[#d4af5f]/25"></div>
+            <img src={logo} alt="Logo" className="relative h-14 w-auto object-contain drop-shadow-[0_4px_18px_rgba(0,0,0,0.5)]" />
           </div>
           <h1 className="text-white text-xl font-semibold tracking-tight">My Budget Tracker</h1>
           <p className="text-[#8fa5c4] text-xs mt-1.5">Aapki apni, mehfooz, personal finance app</p>
@@ -107,6 +107,10 @@ export default function Login() {
           </p>
         </div>
       </div>
+
+      <p className="absolute bottom-6 left-0 right-0 text-center text-[#5c7398] text-xs z-10">
+        By Ad Bhutta &middot; Cell # 0321-6101060
+      </p>
     </div>
   );
 }
