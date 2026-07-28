@@ -384,15 +384,14 @@ function TabBar({ tab, setTab }) {
     { id: "ledger", label: "Accounts", icon: Users },
   ];
   return (
-    <div className="grid grid-cols-6 bg-white border-b-2 border-stone-100 sticky top-0 z-10 shadow-sm">
+    <div className="grid grid-cols-6 gap-0.5 bg-white border-b-2 border-stone-100 sticky top-0 z-10 shadow-sm px-1 py-1.5">
       {tabs.map(t => {
         const Icon = t.icon;
         const active = tab === t.id;
         return (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] sm:text-xs font-semibold border-b-[3px] transition-colors ${active ? "border-[#d4af5f] text-[#0a1628]" : "border-transparent text-stone-400"}`}>
-            <Icon size={15} className={`sm:hidden ${active ? "text-[#0a1628]" : ""}`} />
-            <Icon size={16} className={`hidden sm:block ${active ? "text-[#0a1628]" : ""}`} />
+            className={`flex flex-col items-center justify-center gap-1 py-2 px-0.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all ${active ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/25 scale-[1.03]" : "text-stone-400 hover:bg-stone-50"}`}>
+            <Icon size={16} className={active ? "text-[#d4af5f]" : ""} strokeWidth={active ? 2.5 : 2} />
             <span className="truncate w-full text-center leading-tight">{t.label}</span>
           </button>
         );
