@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw, Users } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw, Users, ChevronRight } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -1081,9 +1081,10 @@ function HeadsModal({ incomeHeads, expenseHeads, subHeads, onAdd, onRename, onDe
                     className="flex-1 border border-stone-300 rounded px-2 py-1 text-sm outline-none mr-2" />
                 ) : (
                   <button onClick={() => setExpanded(isOpen ? null : h)} className="flex items-center gap-2 text-sm flex-1 text-left">
+                    <ChevronRight size={14} className={`text-stone-400 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorFor(h) }}></span>
                     {h}
-                    {subs.length > 0 && <span className="text-[10px] text-stone-400">({subs.length} sub)</span>}
+                    <span className="text-[10px] text-stone-400">{subs.length > 0 ? `(${subs.length} sub-heads)` : "(add sub-heads)"}</span>
                   </button>
                 )}
                 <div className="flex items-center gap-1 shrink-0">
