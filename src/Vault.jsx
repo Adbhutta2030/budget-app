@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "./firebase";
 import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
 import { Plus, X, Trash2, FileText, Lock, Download, Camera, Share2 } from "lucide-react";
@@ -26,29 +26,25 @@ function categoryMeta(id, customCategories = []) {
   return { id: id || "Other", label: id || "Other", color: colorForName(id || "Other") };
 }
 
-// Compress an image file down to a reasonable size and return a base64 data URL.
-function compressImage(file, maxDim = 1280, quality = 0.72) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
-          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width; canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
+function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+// Crop an already-loaded <img> element to a percentage-based rectangle, then
+// downscale/compress the result — this is the "scan" step for documents.
+function cropImageToDataUrl(imgEl, rectPct, maxDim = 1280, quality = 0.75) {
+  const sx = (rectPct.x / 100) * imgEl.naturalWidth;
+  const sy = (rectPct.y / 100) * imgEl.naturalHeight;
+  const sw = (rectPct.w / 100) * imgEl.naturalWidth;
+  const sh = (rectPct.h / 100) * imgEl.naturalHeight;
+  let outW = sw, outH = sh;
+  if (outW > maxDim || outH > maxDim) {
+    if (outW > outH) { outH = Math.round(outH * (maxDim / outW)); outW = maxDim; }
+    else { outW = Math.round(outW * (maxDim / outH)); outH = maxDim; }
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(outW));
+  canvas.height = Math.max(1, Math.round(outH));
+  canvas.getContext("2d").drawImage(imgEl, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 function readAsDataUrl(file) {
@@ -215,6 +211,7 @@ function AddVaultModal({ customCategories, onAddCategory, onClose, onSave }) {
   const [title, setTitle] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [cropSrc, setCropSrc] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -227,30 +224,35 @@ function AddVaultModal({ customCategories, onAddCategory, onClose, onSave }) {
     setNewCategoryName("");
   };
 
+  const finishWithDataUrl = (dataUrl, mimeType) => {
+    const approxBytes = dataUrl.length * 0.75;
+    if (approxBytes > 850000) {
+      setError("Ye file bohot bari hai. Thora zoom out kar ke crop karein ya chhoti file try karein.");
+      return;
+    }
+    setFile({ mimeType });
+    setPreview(dataUrl);
+  };
+
   const handleFile = async (f) => {
     setError("");
     setFile(null);
     setPreview(null);
+    setCropSrc(null);
     if (!f) return;
     const isImage = f.type.startsWith("image/");
     const isPdf = f.type === "application/pdf";
     if (!isImage && !isPdf) { setError("Sirf image ya PDF file upload karein."); return; }
 
     try {
-      let dataUrl;
       if (isImage) {
-        dataUrl = await compressImage(f);
+        // Route through the crop ("scan") step so the document can be cleanly cropped first.
+        const rawDataUrl = await readAsDataUrl(f);
+        setCropSrc(rawDataUrl);
       } else {
-        dataUrl = await readAsDataUrl(f);
+        const dataUrl = await readAsDataUrl(f);
+        finishWithDataUrl(dataUrl, f.type);
       }
-      // Firestore documents max out around 1MB — keep a safety margin.
-      const approxBytes = dataUrl.length * 0.75;
-      if (approxBytes > 850000) {
-        setError("Ye file bohot bari hai. Image use karein ya chhoti file try karein.");
-        return;
-      }
-      setFile({ mimeType: f.type });
-      setPreview(dataUrl);
     } catch {
       setError("File process nahi ho saki. Dobara koshish karein.");
     }
@@ -265,6 +267,18 @@ function AddVaultModal({ customCategories, onAddCategory, onClose, onSave }) {
       setBusy(false);
     }
   };
+
+  if (cropSrc) {
+    return (
+      <Modal onClose={onClose} title="Scan document">
+        <ImageCropper
+          src={cropSrc}
+          onCancel={() => setCropSrc(null)}
+          onConfirm={(croppedDataUrl) => { finishWithDataUrl(croppedDataUrl, "image/jpeg"); setCropSrc(null); }}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal onClose={onClose} title="Add document">
@@ -373,6 +387,97 @@ function Field({ label, children }) {
     <div className="mb-3">
       <label className="block text-xs font-medium text-stone-500 mb-1.5">{label}</label>
       {children}
+    </div>
+  );
+}
+
+function ImageCropper({ src, onCancel, onConfirm }) {
+  const imgRef = useRef(null);
+  const containerRef = useRef(null);
+  const [rect, setRect] = useState({ x: 8, y: 8, w: 84, h: 84 });
+  const dragRef = useRef(null);
+
+  const onMove = (e) => {
+    if (!dragRef.current || !containerRef.current) return;
+    e.preventDefault?.();
+    const point = e.touches ? e.touches[0] : e;
+    const box = containerRef.current.getBoundingClientRect();
+    const dxPct = ((point.clientX - dragRef.current.startX) / box.width) * 100;
+    const dyPct = ((point.clientY - dragRef.current.startY) / box.height) * 100;
+    const { mode, startRect } = dragRef.current;
+    const MIN = 10;
+    let next = { ...startRect };
+    if (mode === "move") {
+      next.x = clamp(startRect.x + dxPct, 0, 100 - startRect.w);
+      next.y = clamp(startRect.y + dyPct, 0, 100 - startRect.h);
+    } else {
+      if (mode.includes("w")) {
+        const newX = clamp(startRect.x + dxPct, 0, startRect.x + startRect.w - MIN);
+        next.w = startRect.w - (newX - startRect.x);
+        next.x = newX;
+      }
+      if (mode.includes("e")) next.w = clamp(startRect.w + dxPct, MIN, 100 - startRect.x);
+      if (mode.includes("n")) {
+        const newY = clamp(startRect.y + dyPct, 0, startRect.y + startRect.h - MIN);
+        next.h = startRect.h - (newY - startRect.y);
+        next.y = newY;
+      }
+      if (mode.includes("s")) next.h = clamp(startRect.h + dyPct, MIN, 100 - startRect.y);
+    }
+    setRect(next);
+  };
+
+  const onUp = () => {
+    dragRef.current = null;
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+    window.removeEventListener("touchmove", onMove);
+    window.removeEventListener("touchend", onUp);
+  };
+
+  const onDown = (mode) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const point = e.touches ? e.touches[0] : e;
+    dragRef.current = { mode, startX: point.clientX, startY: point.clientY, startRect: { ...rect } };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+  };
+
+  const confirm = () => {
+    if (!imgRef.current) return;
+    onConfirm(cropImageToDataUrl(imgRef.current, rect));
+  };
+
+  return (
+    <div>
+      <p className="text-xs text-stone-500 mb-2">Document ke corners tak box adjust karein, phir crop kar dein.</p>
+      <div ref={containerRef} className="relative w-full rounded-lg overflow-hidden" style={{ touchAction: "none" }}>
+        <img ref={imgRef} src={src} alt="Scan preview" className="w-full block" draggable={false} />
+        <div
+          onMouseDown={onDown("move")} onTouchStart={onDown("move")}
+          className="absolute border-2 border-white cursor-move"
+          style={{ left: rect.x + "%", top: rect.y + "%", width: rect.w + "%", height: rect.h + "%", boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)" }}
+        >
+          {["nw", "ne", "sw", "se"].map(pos => (
+            <div key={pos}
+              onMouseDown={onDown(pos)} onTouchStart={onDown(pos)}
+              className="absolute w-5 h-5 bg-white rounded-full border border-stone-400"
+              style={{
+                ...(pos.includes("n") ? { top: -10 } : { bottom: -10 }),
+                ...(pos.includes("w") ? { left: -10 } : { right: -10 }),
+                cursor: `${pos}-resize`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onCancel} type="button" className="flex-1 bg-stone-100 text-stone-600 py-2.5 rounded-lg text-sm font-medium">Cancel</button>
+        <button onClick={confirm} type="button" className="flex-1 bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium">Crop &amp; use</button>
+      </div>
     </div>
   );
 }
