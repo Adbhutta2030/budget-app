@@ -25,7 +25,7 @@ const monthLabel = d => new Date(d+"-01").toLocaleDateString("en-US",{month:"sho
 const DEFAULT_INCOME_HEADS = ["Salary", "Freelance", "Business", "Gift", "Other income"];
 const DEFAULT_EXPENSE_HEADS = ["Food", "Transport", "Rent", "Utilities", "Shopping", "Health", "Education", "Entertainment", "Other expense"];
 
-function parseVoiceEntry(text, incomeHeads, expenseHeads) {
+function parseVoiceEntry(text, incomeHeads, expenseHeads, subHeads = {}) {
   const lower = text.toLowerCase();
 
   // extract amount (handles "1000", "1,000", "5 hazar", "2 lakh")
@@ -39,13 +39,30 @@ function parseVoiceEntry(text, incomeHeads, expenseHeads) {
   const incomeKeywords = ["income", "salary", "tankhwah", "amdani", "mila", "mili", "kamaya", "kamayi", "received"];
   let type = incomeKeywords.some(k => lower.includes(k)) ? "income" : "expense";
 
+  // Try matching a sub-head first — if found, it tells us the main head too.
+  const findSubHead = (heads) => {
+    for (const h of heads) {
+      const sub = (subHeads[h] || []).find(s => lower.includes(s.toLowerCase()));
+      if (sub) return { head: h, sub };
+    }
+    return null;
+  };
   const findHead = (heads) => heads.find(h => lower.includes(h.toLowerCase())) || null;
-  let category = findHead(type === "income" ? incomeHeads : expenseHeads);
+
+  let category = null, subCategory = null;
+  const subMatch = findSubHead(type === "income" ? incomeHeads : expenseHeads);
+  if (subMatch) { category = subMatch.head; subCategory = subMatch.sub; }
+  else category = findHead(type === "income" ? incomeHeads : expenseHeads);
 
   if (!category) {
     const otherType = type === "income" ? "expense" : "income";
-    const otherMatch = findHead(otherType === "income" ? incomeHeads : expenseHeads);
-    if (otherMatch) { type = otherType; category = otherMatch; }
+    const otherHeads = otherType === "income" ? incomeHeads : expenseHeads;
+    const otherSubMatch = findSubHead(otherHeads);
+    if (otherSubMatch) { type = otherType; category = otherSubMatch.head; subCategory = otherSubMatch.sub; }
+    else {
+      const otherMatch = findHead(otherHeads);
+      if (otherMatch) { type = otherType; category = otherMatch; }
+    }
   }
 
   if (!category) {
@@ -53,7 +70,7 @@ function parseVoiceEntry(text, incomeHeads, expenseHeads) {
     category = list[list.length - 1] || list[0] || "";
   }
 
-  return { type, category, amount };
+  return { type, category, subCategory, amount };
 }
 
 const seedTransactions = [
@@ -101,6 +118,7 @@ function BudgetTracker({ uid, userEmail }) {
   const [bills, setBills] = useState([]);
   const [incomeHeads, setIncomeHeads] = useState([]);
   const [expenseHeads, setExpenseHeads] = useState([]);
+  const [subHeads, setSubHeads] = useState({});
   const [showTxModal, setShowTxModal] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showHeadModal, setShowHeadModal] = useState(false);
@@ -118,6 +136,7 @@ function BudgetTracker({ uid, userEmail }) {
           setBills(data.bills || seedBills);
           setIncomeHeads(data.incomeHeads || DEFAULT_INCOME_HEADS);
           setExpenseHeads(data.expenseHeads || DEFAULT_EXPENSE_HEADS);
+          setSubHeads(data.subHeads || {});
         } else {
           setTransactions(seedTransactions);
           setBills(seedBills);
@@ -138,9 +157,9 @@ function BudgetTracker({ uid, userEmail }) {
   useEffect(() => {
     if (!loaded) return;
     const ref = doc(db, "budgets", uid);
-    setDoc(ref, { transactions, bills, incomeHeads, expenseHeads, updatedAt: new Date().toISOString() })
+    setDoc(ref, { transactions, bills, incomeHeads, expenseHeads, subHeads, updatedAt: new Date().toISOString() })
       .catch(e => console.error("Failed to save budget data:", e));
-  }, [transactions, bills, incomeHeads, expenseHeads, loaded, uid]);
+  }, [transactions, bills, incomeHeads, expenseHeads, subHeads, loaded, uid]);
 
   // Show a browser notification (if permitted) for anything due within 3 days or overdue.
   useEffect(() => {
@@ -186,12 +205,30 @@ function BudgetTracker({ uid, userEmail }) {
     if (type === "income") setIncomeHeads(prev => prev.map(h => h === oldName ? newName : h));
     else setExpenseHeads(prev => prev.map(h => h === oldName ? newName : h));
     setTransactions(prev => prev.map(t => t.category === oldName && t.type === type ? { ...t, category: newName } : t));
+    setSubHeads(prev => {
+      if (!prev[oldName]) return prev;
+      const next = { ...prev };
+      next[newName] = next[oldName];
+      delete next[oldName];
+      return next;
+    });
   };
   const deleteHead = (type, name) => {
     const inUse = transactions.some(t => t.type === type && t.category === name);
     if (inUse) { alert("Ye head kuch transactions mein use ho rahi hai — pehle unhe delete ya category change karein."); return; }
     if (type === "income") setIncomeHeads(prev => prev.filter(h => h !== name));
     else setExpenseHeads(prev => prev.filter(h => h !== name));
+    setSubHeads(prev => { const next = { ...prev }; delete next[name]; return next; });
+  };
+  const addSubHead = (headName, subName) => {
+    setSubHeads(prev => {
+      const existing = prev[headName] || [];
+      if (existing.includes(subName)) return prev;
+      return { ...prev, [headName]: [...existing, subName] };
+    });
+  };
+  const deleteSubHead = (headName, subName) => {
+    setSubHeads(prev => ({ ...prev, [headName]: (prev[headName] || []).filter(s => s !== subName) }));
   };
 
   const totalIncome = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
@@ -258,7 +295,7 @@ function BudgetTracker({ uid, userEmail }) {
       {showTxModal && (
         <TxModal
           type={txType} setType={setTxType}
-          incomeHeads={incomeHeads} expenseHeads={expenseHeads}
+          incomeHeads={incomeHeads} expenseHeads={expenseHeads} subHeads={subHeads}
           onManageHeads={() => { setShowTxModal(false); setShowHeadModal(true); }}
           onClose={() => setShowTxModal(false)}
           onSave={(tx) => { addTransaction(tx); setShowTxModal(false); }}
@@ -269,14 +306,15 @@ function BudgetTracker({ uid, userEmail }) {
       )}
       {showHeadModal && (
         <HeadsModal
-          incomeHeads={incomeHeads} expenseHeads={expenseHeads}
+          incomeHeads={incomeHeads} expenseHeads={expenseHeads} subHeads={subHeads}
           onAdd={addHead} onRename={renameHead} onDelete={deleteHead}
+          onAddSub={addSubHead} onDeleteSub={deleteSubHead}
           onClose={() => setShowHeadModal(false)}
         />
       )}
       {showVoiceModal && (
         <VoiceModal
-          incomeHeads={incomeHeads} expenseHeads={expenseHeads}
+          incomeHeads={incomeHeads} expenseHeads={expenseHeads} subHeads={subHeads}
           onClose={() => setShowVoiceModal(false)}
           onSave={(tx) => { addTransaction(tx); setShowVoiceModal(false); }}
         />
@@ -446,7 +484,7 @@ function TxRow({ tx, onDelete }) {
           {tx.category[0]}
         </div>
         <div>
-          <p className="text-sm font-medium">{tx.category}</p>
+          <p className="text-sm font-medium">{tx.category}{tx.subCategory && <span className="text-stone-400 font-normal"> &middot; {tx.subCategory}</span>}</p>
           <p className="text-xs text-stone-400">{tx.note || "—"} &middot; {tx.date}</p>
         </div>
       </div>
@@ -523,33 +561,69 @@ function Bills({ bills, onToggle, onDelete }) {
   );
 }
 
+const COMPARE_RANGES = [
+  { id: "3m", label: "3M" },
+  { id: "6m", label: "6M" },
+  { id: "12m", label: "12M" },
+  { id: "thisYear", label: "This year" },
+  { id: "lastYear", label: "Last year" },
+];
+
+function monthsInRange(range) {
+  const now = new Date();
+  if (range === "thisYear" || range === "lastYear") {
+    const y = now.getFullYear() - (range === "lastYear" ? 1 : 0);
+    return Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`);
+  }
+  const n = range === "3m" ? 3 : range === "12m" ? 12 : 6;
+  const arr = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return arr;
+}
+
 function Compare({ transactions }) {
+  const [range, setRange] = useState("6m");
+  const monthKeys = monthsInRange(range);
+  const monthSet = new Set(monthKeys);
+
   const months = {};
   transactions.forEach(t => {
     const m = t.date.slice(0,7);
     if (!months[m]) months[m] = { month: m, income: 0, expense: 0 };
     months[m][t.type] += t.amount;
   });
-  const monthData = Object.values(months).sort((a,b) => a.month.localeCompare(b.month)).slice(-6)
-    .map(m => ({ ...m, label: monthLabel(m.month) }));
+  const monthData = monthKeys
+    .map(m => ({ month: m, income: months[m]?.income || 0, expense: months[m]?.expense || 0, label: monthLabel(m) }));
 
-  const thisMonth = todayStr().slice(0,7);
   const catTotals = {};
-  transactions.filter(t => t.type === "expense" && t.date.slice(0,7) === thisMonth).forEach(t => {
+  transactions.filter(t => t.type === "expense" && monthSet.has(t.date.slice(0,7))).forEach(t => {
     catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
   });
   const pieData = Object.entries(catTotals).map(([name, value]) => ({ name, value }));
+  const rangeLabel = COMPARE_RANGES.find(r => r.id === range)?.label || "";
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {COMPARE_RANGES.map(r => (
+          <button key={r.id} onClick={() => setRange(r.id)}
+            className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full ${range === r.id ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+            {r.label}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-2xl border border-stone-200 p-5">
         <p className="text-sm font-medium mb-4">Income vs expenses by month</p>
-        {monthData.length === 0 ? <p className="text-sm text-stone-400">Add transactions to see comparisons.</p> : (
+        {monthData.every(m => m.income === 0 && m.expense === 0) ? <p className="text-sm text-stone-400">Add transactions to see comparisons.</p> : (
           <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EEEEEC" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#8B9195" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8B9195" }} axisLine={false} tickLine={false} interval={monthData.length > 8 ? 1 : 0} />
                 <YAxis tick={{ fontSize: 11, fill: "#8B9195" }} axisLine={false} tickLine={false} tickFormatter={v => `${Math.round(v/1000)}k`} />
                 <Tooltip formatter={v => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E3E4E0" }} />
                 <Bar dataKey="income" fill="#3F8F6E" radius={[4,4,0,0]} name="Income" />
@@ -561,8 +635,8 @@ function Compare({ transactions }) {
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 p-5">
-        <p className="text-sm font-medium mb-4">This month's spending by head</p>
-        {pieData.length === 0 ? <p className="text-sm text-stone-400">No expenses recorded this month yet.</p> : (
+        <p className="text-sm font-medium mb-4">Spending by head &middot; {rangeLabel}</p>
+        {pieData.length === 0 ? <p className="text-sm text-stone-400">No expenses recorded in this range yet.</p> : (
           <div className="flex items-center gap-4">
             <div style={{ width: 140, height: 140 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -589,9 +663,10 @@ function Compare({ transactions }) {
   );
 }
 
-function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onClose, onSave }) {
+function TxModal({ type, setType, incomeHeads, expenseHeads, subHeads, onManageHeads, onClose, onSave }) {
   const heads = type === "income" ? incomeHeads : expenseHeads;
   const [category, setCategory] = useState(heads[0] || "");
+  const [subCategory, setSubCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
@@ -600,7 +675,10 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
     setType(t);
     const list = t === "income" ? incomeHeads : expenseHeads;
     setCategory(list[0] || "");
+    setSubCategory("");
   };
+
+  const availableSubHeads = subHeads?.[category] || [];
 
   return (
     <Modal onClose={onClose} title="Add entry">
@@ -628,19 +706,33 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
           </button>
         ) : (
           <div className="flex gap-2">
-            <select value={category} onChange={e=>setCategory(e.target.value)} className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+            <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); }} className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
               {heads.map(c => <option key={c}>{c}</option>)}
             </select>
             <MicButton
               onResult={(text) => {
-                const match = heads.find(h => text.toLowerCase().includes(h.toLowerCase()));
-                if (match) setCategory(match);
+                const lower = text.toLowerCase();
+                // Try to match a sub-head first (across all heads of this type), then fall back to a main head.
+                for (const h of heads) {
+                  const sub = (subHeads?.[h] || []).find(s => lower.includes(s.toLowerCase()));
+                  if (sub) { setCategory(h); setSubCategory(sub); return; }
+                }
+                const match = heads.find(h => lower.includes(h.toLowerCase()));
+                if (match) { setCategory(match); setSubCategory(""); }
               }}
             />
           </div>
         )}
         <button onClick={onManageHeads} className="text-xs text-stone-500 underline mt-1.5">Manage heads</button>
       </Field>
+      {availableSubHeads.length > 0 && (
+        <Field label="Sub-head (optional)">
+          <select value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+            <option value="">None</option>
+            {availableSubHeads.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </Field>
+      )}
       <Field label="Date">
         <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
       </Field>
@@ -648,7 +740,7 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
         <VoiceField value={note} onChange={setNote} placeholder="e.g. Grocery shopping" />
       </Field>
       <button
-        onClick={() => { if(!amount || parseFloat(amount)<=0 || !category) return; onSave({ type, category, amount: parseFloat(amount), date, note }); }}
+        onClick={() => { if(!amount || parseFloat(amount)<=0 || !category) return; onSave({ type, category, subCategory: subCategory || null, amount: parseFloat(amount), date, note }); }}
         className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
         Save entry
       </button>
@@ -656,19 +748,21 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, onManageHeads, onCl
   );
 }
 
-function VoiceModal({ incomeHeads, expenseHeads, onClose, onSave }) {
+function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
   const [status, setStatus] = useState("listening"); // listening | reviewing | error | unsupported
   const [transcript, setTranscript] = useState("");
   const [lang, setLang] = useState("en-US");
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
   const [amount, setAmount] = useState("");
   const recRef = useRef(null);
 
   const finalizeTranscript = (text) => {
-    const parsed = parseVoiceEntry(text, incomeHeads, expenseHeads);
+    const parsed = parseVoiceEntry(text, incomeHeads, expenseHeads, subHeads);
     setType(parsed.type);
     setCategory(parsed.category);
+    setSubCategory(parsed.subCategory || "");
     setAmount(parsed.amount != null ? String(parsed.amount) : "");
     setStatus("reviewing");
   };
@@ -752,7 +846,7 @@ function VoiceModal({ incomeHeads, expenseHeads, onClose, onSave }) {
           <div className="flex gap-2 mb-4">
             {["expense", "income"].map(t => (
               <button key={t}
-                onClick={() => { setType(t); const list = t === "income" ? incomeHeads : expenseHeads; setCategory(list[0] || ""); }}
+                onClick={() => { setType(t); const list = t === "income" ? incomeHeads : expenseHeads; setCategory(list[0] || ""); setSubCategory(""); }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize ${type === t ? (t === "income" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "bg-stone-100 text-stone-500"}`}>
                 {t}
               </button>
@@ -766,18 +860,27 @@ function VoiceModal({ incomeHeads, expenseHeads, onClose, onSave }) {
             {heads.length === 0 ? (
               <p className="text-sm text-stone-400">Pehle koi head banayein.</p>
             ) : (
-              <select value={category} onChange={e => setCategory(e.target.value)}
+              <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); }}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
                 {heads.map(c => <option key={c}>{c}</option>)}
               </select>
             )}
           </Field>
+          {(subHeads?.[category] || []).length > 0 && (
+            <Field label="Sub-head">
+              <select value={subCategory} onChange={e => setSubCategory(e.target.value)}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                <option value="">None</option>
+                {subHeads[category].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </Field>
+          )}
           <div className="flex gap-2 mt-2">
             <button onClick={() => startListening()} className="flex-1 bg-stone-100 text-stone-600 py-2.5 rounded-lg text-sm font-medium">
               Dobara bolein
             </button>
             <button
-              onClick={() => { if (!amount || parseFloat(amount) <= 0 || !category) return; onSave({ type, category, amount: parseFloat(amount), date: todayStr(), note: transcript }); }}
+              onClick={() => { if (!amount || parseFloat(amount) <= 0 || !category) return; onSave({ type, category, subCategory: subCategory || null, amount: parseFloat(amount), date: todayStr(), note: transcript }); }}
               className="flex-1 bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium">
               Save entry
             </button>
@@ -922,11 +1025,13 @@ function BillModal({ onClose, onSave }) {
   );
 }
 
-function HeadsModal({ incomeHeads, expenseHeads, onAdd, onRename, onDelete, onClose }) {
+function HeadsModal({ incomeHeads, expenseHeads, subHeads, onAdd, onRename, onDelete, onAddSub, onDeleteSub, onClose }) {
   const [tab, setTab] = useState("expense");
   const [newHead, setNewHead] = useState("");
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [expanded, setExpanded] = useState(null);
+  const [newSub, setNewSub] = useState("");
   const heads = tab === "income" ? incomeHeads : expenseHeads;
 
   const submitNew = () => {
@@ -936,11 +1041,18 @@ function HeadsModal({ incomeHeads, expenseHeads, onAdd, onRename, onDelete, onCl
     setNewHead("");
   };
 
+  const submitNewSub = (headName) => {
+    const name = newSub.trim();
+    if (!name) return;
+    onAddSub(headName, name);
+    setNewSub("");
+  };
+
   return (
     <Modal onClose={onClose} title="Manage income and expense heads">
       <div className="flex gap-2 mb-4">
         {["expense","income"].map(t => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} onClick={() => { setTab(t); setExpanded(null); }}
             className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize ${tab===t ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
             {t} heads
           </button>
@@ -955,29 +1067,58 @@ function HeadsModal({ incomeHeads, expenseHeads, onAdd, onRename, onDelete, onCl
         <button onClick={submitNew} className="bg-stone-900 text-white px-3 rounded-lg"><Plus size={16}/></button>
       </div>
 
-      <div className="space-y-1.5 max-h-64 overflow-y-auto">
+      <div className="space-y-1.5 max-h-72 overflow-y-auto">
         {heads.length === 0 && <p className="text-sm text-stone-400 text-center py-4">Koi head nahi hai. Upar se ek add karein.</p>}
-        {heads.map(h => (
-          <div key={h} className="flex items-center justify-between border border-stone-100 rounded-lg px-3 py-2">
-            {editing === h ? (
-              <input autoFocus value={editValue} onChange={e=>setEditValue(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && editValue.trim()) { onRename(tab, h, editValue.trim()); setEditing(null); } }}
-                className="flex-1 border border-stone-300 rounded px-2 py-1 text-sm outline-none mr-2" />
-            ) : (
-              <span className="flex items-center gap-2 text-sm">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: colorFor(h) }}></span>{h}
-              </span>
-            )}
-            <div className="flex items-center gap-1">
-              {editing === h ? (
-                <button onClick={() => { if(editValue.trim()){ onRename(tab, h, editValue.trim()); } setEditing(null); }} className="text-emerald-600 text-xs font-medium px-2">Save</button>
-              ) : (
-                <button onClick={() => { setEditing(h); setEditValue(h); }} className="text-stone-400 hover:text-stone-700"><Pencil size={14}/></button>
+        {heads.map(h => {
+          const subs = subHeads?.[h] || [];
+          const isOpen = expanded === h;
+          return (
+            <div key={h} className="border border-stone-100 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2">
+                {editing === h ? (
+                  <input autoFocus value={editValue} onChange={e=>setEditValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && editValue.trim()) { onRename(tab, h, editValue.trim()); setEditing(null); } }}
+                    className="flex-1 border border-stone-300 rounded px-2 py-1 text-sm outline-none mr-2" />
+                ) : (
+                  <button onClick={() => setExpanded(isOpen ? null : h)} className="flex items-center gap-2 text-sm flex-1 text-left">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorFor(h) }}></span>
+                    {h}
+                    {subs.length > 0 && <span className="text-[10px] text-stone-400">({subs.length} sub)</span>}
+                  </button>
+                )}
+                <div className="flex items-center gap-1 shrink-0">
+                  {editing === h ? (
+                    <button onClick={() => { if(editValue.trim()){ onRename(tab, h, editValue.trim()); } setEditing(null); }} className="text-emerald-600 text-xs font-medium px-2">Save</button>
+                  ) : (
+                    <button onClick={() => { setEditing(h); setEditValue(h); }} className="text-stone-400 hover:text-stone-700"><Pencil size={14}/></button>
+                  )}
+                  <button onClick={() => onDelete(tab, h)} className="text-stone-400 hover:text-rose-500"><Trash2 size={14}/></button>
+                </div>
+              </div>
+              {isOpen && (
+                <div className="bg-stone-50 px-3 py-2.5 border-t border-stone-100">
+                  <p className="text-[10px] text-stone-400 mb-1.5">Sub-heads (e.g. Chicken, Beef, Mutton under Ration)</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {subs.map(s => (
+                      <span key={s} className="flex items-center gap-1 text-xs bg-white border border-stone-200 rounded-full px-2 py-1">
+                        {s}
+                        <button onClick={() => onDeleteSub(h, s)} className="text-stone-400 hover:text-rose-500"><X size={11}/></button>
+                      </span>
+                    ))}
+                    {subs.length === 0 && <span className="text-xs text-stone-400">Koi sub-head nahi hai</span>}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input type="text" value={newSub} onChange={e => setNewSub(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") submitNewSub(h); }}
+                      placeholder="e.g. Chicken"
+                      className="flex-1 border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-stone-400" />
+                    <button onClick={() => submitNewSub(h)} className="bg-stone-900 text-white px-2.5 rounded-lg text-xs">Add</button>
+                  </div>
+                </div>
               )}
-              <button onClick={() => onDelete(tab, h)} className="text-stone-400 hover:text-rose-500"><Trash2 size={14}/></button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Modal>
   );
