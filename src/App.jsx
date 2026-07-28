@@ -7,6 +7,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import Login from "./Login";
 import Vault from "./Vault";
 import Ledger from "./Ledger";
+import ProfitLoss from "./ProfitLoss";
 import VoiceField, { MicButton, parseSpokenAmount } from "./VoiceField";
 import MbtLogo from "./Logo";
 
@@ -264,7 +265,7 @@ function BudgetTracker({ uid, userEmail }) {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-stone-50 min-h-screen font-sans text-stone-900">
+    <div className="w-full max-w-2xl mx-auto bg-gradient-to-b from-[#faf7f0] to-stone-50 min-h-screen font-sans text-stone-900">
       <Header onOpenHeads={() => setShowHeadModal(true)} userEmail={userEmail} />
       <TabBar tab={tab} setTab={setTab} />
 
@@ -279,7 +280,10 @@ function BudgetTracker({ uid, userEmail }) {
           <Bills bills={bills} onToggle={toggleBillPaid} onDelete={deleteBill} />
         )}
         {tab === "compare" && (
-          <Compare transactions={transactions} />
+          <div className="space-y-4">
+            <Compare transactions={transactions} />
+            <ProfitLoss transactions={transactions} />
+          </div>
         )}
         {tab === "vault" && (
           <Vault uid={uid} />
@@ -380,15 +384,15 @@ function TabBar({ tab, setTab }) {
     { id: "ledger", label: "Accounts", icon: Users },
   ];
   return (
-    <div className="grid grid-cols-6 bg-white border-b border-stone-200 sticky top-0 z-10">
+    <div className="grid grid-cols-6 bg-white border-b-2 border-stone-100 sticky top-0 z-10 shadow-sm">
       {tabs.map(t => {
         const Icon = t.icon;
         const active = tab === t.id;
         return (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] sm:text-xs font-medium border-b-2 transition-colors ${active ? "border-stone-900 text-stone-900" : "border-transparent text-stone-400"}`}>
-            <Icon size={15} className="sm:hidden" />
-            <Icon size={16} className="hidden sm:block" />
+            className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] sm:text-xs font-semibold border-b-[3px] transition-colors ${active ? "border-[#d4af5f] text-[#0a1628]" : "border-transparent text-stone-400"}`}>
+            <Icon size={15} className={`sm:hidden ${active ? "text-[#0a1628]" : ""}`} />
+            <Icon size={16} className={`hidden sm:block ${active ? "text-[#0a1628]" : ""}`} />
             <span className="truncate w-full text-center leading-tight">{t.label}</span>
           </button>
         );
@@ -403,24 +407,25 @@ function Dashboard({ balance, monthIncome, monthExpense, transactions, bills }) 
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
-        <p className="text-xs text-stone-400 mb-1">Total balance</p>
-        <p className="text-3xl font-medium tabular-nums">{fmt(balance)}</p>
-        <div className="flex gap-4 mt-4 pt-4 border-t border-stone-100">
+      <div className="bg-gradient-to-br from-[#0a1628] via-[#122544] to-[#0a1628] rounded-2xl p-5 shadow-lg shadow-[#0a1628]/20 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#d4af5f]/10 rounded-full blur-2xl pointer-events-none"></div>
+        <p className="text-[#8fa5c4] text-xs mb-1 relative">Total balance</p>
+        <p className="text-white text-3xl font-bold tabular-nums relative">{fmt(balance)}</p>
+        <div className="flex gap-4 mt-4 pt-4 border-t border-white/10 relative">
           <div className="flex-1">
-            <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-medium mb-1"><TrendingUp size={14}/> Income (this month)</div>
-            <p className="text-lg font-medium tabular-nums">{fmt(monthIncome)}</p>
+            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold mb-1"><TrendingUp size={14}/> Income (this month)</div>
+            <p className="text-lg font-bold tabular-nums text-white">{fmt(monthIncome)}</p>
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-1.5 text-rose-700 text-xs font-medium mb-1"><TrendingDown size={14}/> Expenses (this month)</div>
-            <p className="text-lg font-medium tabular-nums">{fmt(monthExpense)}</p>
+            <div className="flex items-center gap-1.5 text-rose-400 text-xs font-semibold mb-1"><TrendingDown size={14}/> Expenses (this month)</div>
+            <p className="text-lg font-bold tabular-nums text-white">{fmt(monthExpense)}</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium">Upcoming deadlines</p>
+          <p className="text-sm font-bold text-stone-800">Upcoming deadlines</p>
         </div>
         {upcoming.length === 0 ? (
           <p className="text-sm text-stone-400">No pending bills. You're all caught up.</p>
@@ -431,8 +436,8 @@ function Dashboard({ balance, monthIncome, monthExpense, transactions, bills }) 
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
-        <p className="text-sm font-medium mb-3">Recent activity</p>
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+        <p className="text-sm font-bold text-stone-800 mb-3">Recent activity</p>
         <div className="divide-y divide-stone-100">
           {recent.map(t => <TxRow key={t.id} tx={t} />)}
         </div>
@@ -522,15 +527,16 @@ function Transactions({ transactions, onDelete }) {
   const filtered = transactions.filter(t => filter === "all" || t.type === filter);
   return (
     <div className="space-y-3">
+      <h2 className="text-lg font-bold text-stone-800">Transactions</h2>
       <div className="flex gap-2">
         {["all","income","expense"].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize ${filter===f ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize ${filter===f ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
             {f}
           </button>
         ))}
       </div>
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
         {filtered.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-6">No transactions yet.</p>
         ) : (
@@ -555,6 +561,7 @@ function Bills({ bills, onToggle, onDelete }) {
 
   return (
     <div className="space-y-3">
+      <h2 className="text-lg font-bold text-stone-800">Deadlines</h2>
       {permission === "default" && (
         <button onClick={enableNotifications}
           className="w-full flex items-center gap-2 bg-white border border-stone-200 rounded-2xl p-3.5 text-left hover:border-stone-300">
@@ -626,10 +633,11 @@ function Compare({ transactions }) {
 
   return (
     <div className="space-y-4">
+      <h2 className="text-lg font-bold text-stone-800">Compare</h2>
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {COMPARE_RANGES.map(r => (
           <button key={r.id} onClick={() => setRange(r.id)}
-            className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full ${range === r.id ? "bg-stone-900 text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${range === r.id ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
             {r.label}
           </button>
         ))}
