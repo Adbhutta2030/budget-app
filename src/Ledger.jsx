@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { db } from "./firebase";
 import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy } from "firebase/firestore";
-import { Plus, X, Trash2, Share2, Users, ArrowDownLeft, ArrowUpRight, Info } from "lucide-react";
+import { Plus, X, Trash2, Share2, Users, ArrowDownLeft, ArrowUpRight, Info, Pencil } from "lucide-react";
 import { jsPDF } from "jspdf";
 import VoiceField from "./VoiceField";
 
@@ -131,6 +131,7 @@ export default function Ledger({ uid }) {
   const [entries, setEntries] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [openKey, setOpenKey] = useState(null);
 
   useEffect(() => {
@@ -158,6 +159,13 @@ export default function Ledger({ uid }) {
   const deleteEntry = async (id) => {
     await deleteDoc(doc(db, "budgets", uid, "ledger", id));
     setEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  const updateEntry = async (id, data) => {
+    const existing = entries.find(e => e.id === id);
+    const record = { ...data, createdAt: existing?.createdAt || new Date().toISOString() };
+    await setDoc(doc(db, "budgets", uid, "ledger", id), record);
+    setEntries(prev => prev.map(e => (e.id === id ? { id, ...record } : e)));
   };
 
   if (!loaded) {
@@ -228,11 +236,22 @@ export default function Ledger({ uid }) {
         />
       )}
 
+      {editingEntry && (
+        <AddLedgerModal
+          existingNames={existingNames}
+          people={people}
+          initial={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSave={async (data) => { await updateEntry(editingEntry.id, data); setEditingEntry(null); }}
+        />
+      )}
+
       {openPerson && (
         <PersonModal
           person={openPerson}
           onClose={() => setOpenKey(null)}
           onDelete={deleteEntry}
+          onEdit={(entry) => { setOpenKey(null); setEditingEntry(entry); }}
           onShare={() => shareStatement(openPerson, openPerson.entries, openPerson.balance)}
         />
       )}
@@ -240,13 +259,14 @@ export default function Ledger({ uid }) {
   );
 }
 
-function AddLedgerModal({ existingNames, people, onClose, onSave }) {
-  const [person, setPerson] = useState("");
-  const [phone, setPhone] = useState("");
-  const [direction, setDirection] = useState("gave");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayStr());
-  const [note, setNote] = useState("");
+function AddLedgerModal({ existingNames, people, initial, onClose, onSave }) {
+  const isEdit = !!initial;
+  const [person, setPerson] = useState(initial?.person || "");
+  const [phone, setPhone] = useState(initial?.phone || "");
+  const [direction, setDirection] = useState(initial?.direction || "gave");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [date, setDate] = useState(initial?.date || todayStr());
+  const [note, setNote] = useState(initial?.note || "");
   const [busy, setBusy] = useState(false);
 
   const nameMatches = person.trim() && existingNames.some(n => n.toLowerCase() === person.trim().toLowerCase());
@@ -263,7 +283,7 @@ function AddLedgerModal({ existingNames, people, onClose, onSave }) {
   };
 
   return (
-    <Modal onClose={onClose} title="Add payment or receipt">
+    <Modal onClose={onClose} title={isEdit ? "Edit entry" : "Add payment or receipt"}>
       <div className="flex gap-2 mb-4">
         <button onClick={() => setDirection("gave")}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "gave" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}>
@@ -303,13 +323,13 @@ function AddLedgerModal({ existingNames, people, onClose, onSave }) {
       </Field>
       <button onClick={save} disabled={busy || !person.trim() || !amount}
         className="w-full bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
-        {busy ? "Saving..." : "Save entry"}
+        {busy ? "Saving..." : isEdit ? "Update entry" : "Save entry"}
       </button>
     </Modal>
   );
 }
 
-function PersonModal({ person, onClose, onDelete, onShare }) {
+function PersonModal({ person, onClose, onDelete, onEdit, onShare }) {
   return (
     <Modal onClose={onClose} title={displayLabel(person)}>
       <div className={`rounded-xl p-3 mb-4 ${person.balance >= 0 ? "bg-emerald-50" : "bg-rose-50"}`}>
@@ -327,7 +347,10 @@ function PersonModal({ person, onClose, onDelete, onShare }) {
               </p>
               <p className="text-xs text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
             </div>
-            <button onClick={() => onDelete(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={14} /></button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => onEdit(e)} className="text-stone-300 hover:text-stone-600"><Pencil size={14} /></button>
+              <button onClick={() => onDelete(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={14} /></button>
+            </div>
           </div>
         ))}
       </div>
