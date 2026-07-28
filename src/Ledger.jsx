@@ -132,6 +132,7 @@ export default function Ledger({ uid }) {
   const [loaded, setLoaded] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [deletingKey, setDeletingKey] = useState(null);
   const [openKey, setOpenKey] = useState(null);
 
   useEffect(() => {
@@ -159,6 +160,12 @@ export default function Ledger({ uid }) {
   const deleteEntry = async (id) => {
     await deleteDoc(doc(db, "budgets", uid, "ledger", id));
     setEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  const deletePersonEntries = async (person) => {
+    await Promise.all(person.entries.map(e => deleteDoc(doc(db, "budgets", uid, "ledger", e.id))));
+    const ids = new Set(person.entries.map(e => e.id));
+    setEntries(prev => prev.filter(e => !ids.has(e.id)));
   };
 
   const updateEntry = async (id, data) => {
@@ -194,27 +201,39 @@ export default function Ledger({ uid }) {
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 p-2">
           {people.map(p => (
-            <button key={p.key} onClick={() => setOpenKey(p.key)}
-              className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 text-left">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0" style={{ background: p.balance >= 0 ? "#3F8F6E" : "#B8555A" }}>
-                  {p.name[0]?.toUpperCase()}
+            <div key={p.key} className="flex items-center gap-1 rounded-xl hover:bg-stone-50">
+              <button onClick={() => setOpenKey(p.key)}
+                className="flex-1 flex items-center justify-between p-3 text-left min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0" style={{ background: p.balance >= 0 ? "#3F8F6E" : "#B8555A" }}>
+                    {p.name[0]?.toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium flex items-center gap-1.5 truncate">
+                      {displayLabel(p)}
+                      {p.ambiguous && <Info size={12} className="text-amber-500 shrink-0" />}
+                    </p>
+                    <p className="text-xs text-stone-400">{p.entries.length} entries</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium flex items-center gap-1.5">
-                    {displayLabel(p)}
-                    {p.ambiguous && <Info size={12} className="text-amber-500" />}
+                <div className="text-right shrink-0 ml-2">
+                  <p className={`text-sm font-medium tabular-nums ${p.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    {fmt(Math.abs(p.balance))}
                   </p>
-                  <p className="text-xs text-stone-400">{p.entries.length} entries</p>
+                  <p className="text-[10px] text-stone-400">{p.balance >= 0 ? "lena hai" : "dena hai"}</p>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className={`text-sm font-medium tabular-nums ${p.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                  {fmt(Math.abs(p.balance))}
-                </p>
-                <p className="text-[10px] text-stone-400">{p.balance >= 0 ? "lena hai" : "dena hai"}</p>
-              </div>
-            </button>
+              </button>
+              {deletingKey === p.key ? (
+                <button onClick={() => { deletePersonEntries(p); setDeletingKey(null); }}
+                  className="text-[10px] font-medium bg-rose-600 text-white px-2 py-1.5 rounded-lg shrink-0 mr-2">
+                  Confirm
+                </button>
+              ) : (
+                <button onClick={() => setDeletingKey(p.key)} className="text-stone-300 hover:text-rose-500 shrink-0 mr-2 p-1">
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
