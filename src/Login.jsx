@@ -1,8 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "./firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { Wallet, Mail, Lock, Eye, EyeOff, Phone, Store } from "lucide-react";
+import { Wallet, Mail, Lock, Eye, EyeOff, Phone, Store, Fingerprint, X } from "lucide-react";
 import MbtLogo from "./Logo";
+
+const BIO_KEY = "mbt_biometric";
+
+function bufferToBase64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function base64ToBuffer(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function registerBiometric(email, password) {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: "My Budget Tracker" },
+      user: { id: userId, name: email, displayName: email },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+      timeout: 60000,
+      attestation: "none",
+    },
+  });
+  localStorage.setItem(BIO_KEY, JSON.stringify({ email, password, credId: bufferToBase64(cred.rawId) }));
+}
+
+async function assertBiometric(credId) {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      allowCredentials: [{ id: base64ToBuffer(credId), type: "public-key" }],
+      userVerification: "required",
+      timeout: 60000,
+    },
+  });
+}
 
 export default function Login() {
   const [mode, setMode] = useState("login"); // 'login' | 'signup'
@@ -11,6 +52,22 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [bioSupported, setBioSupported] = useState(false);
+  const [savedBio, setSavedBio] = useState(null); // { email, credId }
+  const [rememberBio, setRememberBio] = useState(true);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioError, setBioError] = useState("");
+
+  useEffect(() => {
+    if (window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(setBioSupported).catch(() => setBioSupported(false));
+    }
+    try {
+      const stored = JSON.parse(localStorage.getItem(BIO_KEY) || "null");
+      if (stored) setSavedBio({ email: stored.email, credId: stored.credId });
+    } catch {}
+  }, []);
 
   const submit = async () => {
     setError("");
@@ -23,6 +80,9 @@ export default function Login() {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
       }
+      if (rememberBio && bioSupported) {
+        try { await registerBiometric(email, password); } catch {}
+      }
     } catch (e) {
       const map = {
         "auth/invalid-credential": "Incorrect email or password.",
@@ -33,6 +93,25 @@ export default function Login() {
       setError(map[e.code] || "Something went wrong. Please try again.");
     }
     setBusy(false);
+  };
+
+  const loginWithBiometric = async () => {
+    setBioError("");
+    setBioBusy(true);
+    try {
+      const stored = JSON.parse(localStorage.getItem(BIO_KEY) || "null");
+      if (!stored) throw new Error("no-credential");
+      await assertBiometric(stored.credId);
+      await signInWithEmailAndPassword(auth, stored.email, stored.password);
+    } catch (e) {
+      setBioError("Biometric se login nahi ho saka. Neeche email/password se login karein.");
+    }
+    setBioBusy(false);
+  };
+
+  const forgetBiometric = () => {
+    localStorage.removeItem(BIO_KEY);
+    setSavedBio(null);
   };
 
   return (
@@ -64,6 +143,32 @@ export default function Login() {
             </div>
           </div>
         </div>
+
+        {/* Biometric quick-login */}
+        {savedBio && (
+          <div className="mb-5">
+            <button
+              onClick={loginWithBiometric}
+              disabled={bioBusy}
+              className="w-full flex items-center justify-center gap-2 bg-[#d4af5f]/10 border border-[#d4af5f]/40 text-[#d4af5f] py-3 rounded-2xl text-sm font-semibold disabled:opacity-60"
+            >
+              <Fingerprint size={18} />
+              {bioBusy ? "Verifying..." : `Unlock with Face ID / Fingerprint`}
+            </button>
+            <div className="flex items-center justify-between mt-2 px-1">
+              <p className="text-[11px] text-[#5c7398] truncate">{savedBio.email}</p>
+              <button onClick={forgetBiometric} className="text-[11px] text-[#5c7398] hover:text-rose-300 flex items-center gap-0.5 shrink-0">
+                <X size={11} /> Remove
+              </button>
+            </div>
+            {bioError && <p className="text-xs text-rose-300 mt-2 bg-rose-500/10 border border-rose-500/25 rounded-lg px-3 py-2">{bioError}</p>}
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-white/10"></div>
+              <span className="text-[11px] text-[#5c7398]">or use email &amp; password</span>
+              <div className="flex-1 h-px bg-white/10"></div>
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div className="w-full bg-white/[0.05] backdrop-blur-xl border border-[#d4af5f]/15 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/40">
@@ -97,6 +202,14 @@ export default function Login() {
               </button>
             </div>
           </div>
+
+          {bioSupported && (
+            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+              <input type="checkbox" checked={rememberBio} onChange={e => setRememberBio(e.target.checked)}
+                className="w-4 h-4 accent-[#d4af5f]" />
+              <span className="text-xs text-[#8fa5c4] flex items-center gap-1"><Fingerprint size={13}/> Enable Face ID / Fingerprint login on this device</span>
+            </label>
+          )}
 
           {error && <p className="text-xs text-rose-300 mb-3 bg-rose-500/10 border border-rose-500/25 rounded-lg px-3 py-2">{error}</p>}
 
