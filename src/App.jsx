@@ -25,6 +25,15 @@ const monthLabel = d => new Date(d+"-01").toLocaleDateString("en-US",{month:"sho
 const DEFAULT_INCOME_HEADS = ["Salary", "Freelance", "Business", "Gift", "Other income"];
 const DEFAULT_EXPENSE_HEADS = ["Food", "Transport", "Rent", "Utilities", "Shopping", "Health", "Education", "Entertainment", "Other expense"];
 
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function textContainsWord(lower, word) {
+  // Word-boundary match so "Rent" doesn't false-match inside "current", etc.
+  return new RegExp(`(^|[^a-z0-9])${escapeRegex(word.toLowerCase())}([^a-z0-9]|$)`).test(lower);
+}
+
 function parseVoiceEntry(text, incomeHeads, expenseHeads, subHeads = {}) {
   const lower = text.toLowerCase();
 
@@ -42,35 +51,45 @@ function parseVoiceEntry(text, incomeHeads, expenseHeads, subHeads = {}) {
   // Try matching a sub-head first — if found, it tells us the main head too.
   const findSubHead = (heads) => {
     for (const h of heads) {
-      const sub = (subHeads[h] || []).find(s => lower.includes(s.toLowerCase()));
+      const sub = (subHeads[h] || []).find(s => textContainsWord(lower, s));
       if (sub) return { head: h, sub };
     }
     return null;
   };
-  const findHead = (heads) => heads.find(h => lower.includes(h.toLowerCase())) || null;
+  // Prefer the longest matching head name (more specific matches win over short/generic ones).
+  const findHead = (heads) => {
+    const matches = heads.filter(h => textContainsWord(lower, h));
+    if (matches.length === 0) return null;
+    return matches.sort((a, b) => b.length - a.length)[0];
+  };
 
-  let category = null, subCategory = null;
+  let category = null, subCategory = null, matched = false;
   const subMatch = findSubHead(type === "income" ? incomeHeads : expenseHeads);
-  if (subMatch) { category = subMatch.head; subCategory = subMatch.sub; }
-  else category = findHead(type === "income" ? incomeHeads : expenseHeads);
+  if (subMatch) { category = subMatch.head; subCategory = subMatch.sub; matched = true; }
+  else {
+    category = findHead(type === "income" ? incomeHeads : expenseHeads);
+    if (category) matched = true;
+  }
 
   if (!category) {
     const otherType = type === "income" ? "expense" : "income";
     const otherHeads = otherType === "income" ? incomeHeads : expenseHeads;
     const otherSubMatch = findSubHead(otherHeads);
-    if (otherSubMatch) { type = otherType; category = otherSubMatch.head; subCategory = otherSubMatch.sub; }
+    if (otherSubMatch) { type = otherType; category = otherSubMatch.head; subCategory = otherSubMatch.sub; matched = true; }
     else {
       const otherMatch = findHead(otherHeads);
-      if (otherMatch) { type = otherType; category = otherMatch; }
+      if (otherMatch) { type = otherType; category = otherMatch; matched = true; }
     }
   }
 
   if (!category) {
+    // Nothing recognized — default to the first head rather than a random/arbitrary one,
+    // and flag it as unmatched so the review screen can prompt the person to double check.
     const list = type === "income" ? incomeHeads : expenseHeads;
-    category = list[list.length - 1] || list[0] || "";
+    category = list[0] || "";
   }
 
-  return { type, category, subCategory, amount };
+  return { type, category, subCategory, amount, matched };
 }
 
 const seedTransactions = [
@@ -714,11 +733,14 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, subHeads, onManageH
                 const lower = text.toLowerCase();
                 // Try to match a sub-head first (across all heads of this type), then fall back to a main head.
                 for (const h of heads) {
-                  const sub = (subHeads?.[h] || []).find(s => lower.includes(s.toLowerCase()));
+                  const sub = (subHeads?.[h] || []).find(s => textContainsWord(lower, s));
                   if (sub) { setCategory(h); setSubCategory(sub); return; }
                 }
-                const match = heads.find(h => lower.includes(h.toLowerCase()));
-                if (match) { setCategory(match); setSubCategory(""); }
+                const matches = heads.filter(h => textContainsWord(lower, h));
+                if (matches.length > 0) {
+                  const best = matches.sort((a, b) => b.length - a.length)[0];
+                  setCategory(best); setSubCategory("");
+                }
               }}
             />
           </div>
@@ -756,6 +778,7 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [amount, setAmount] = useState("");
+  const [headMatched, setHeadMatched] = useState(true);
   const recRef = useRef(null);
 
   const finalizeTranscript = (text) => {
@@ -764,6 +787,7 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
     setCategory(parsed.category);
     setSubCategory(parsed.subCategory || "");
     setAmount(parsed.amount != null ? String(parsed.amount) : "");
+    setHeadMatched(parsed.matched);
     setStatus("reviewing");
   };
 
@@ -843,6 +867,11 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
       {status === "reviewing" && (
         <div>
           <p className="text-xs text-stone-400 mb-3">Aap ne kaha: <span className="italic">"{transcript}"</span></p>
+          {!headMatched && (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-2 mb-3">
+              Head pehchan nahi saka — neeche se sahi head select kar lein.
+            </p>
+          )}
           <div className="flex gap-2 mb-4">
             {["expense", "income"].map(t => (
               <button key={t}
@@ -860,7 +889,7 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
             {heads.length === 0 ? (
               <p className="text-sm text-stone-400">Pehle koi head banayein.</p>
             ) : (
-              <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); }}
+              <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); setHeadMatched(true); }}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
                 {heads.map(c => <option key={c}>{c}</option>)}
               </select>
