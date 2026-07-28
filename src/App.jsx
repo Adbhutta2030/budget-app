@@ -594,6 +594,17 @@ const COMPARE_RANGES = [
   { id: "lastYear", label: "Last year" },
 ];
 
+const DAILY_RANGES = [
+  { id: "7d", label: "7D" },
+  { id: "14d", label: "14D" },
+  { id: "30d", label: "30D" },
+];
+
+const YEARLY_RANGES = [
+  { id: "3y", label: "3Y" },
+  { id: "5y", label: "5Y" },
+];
+
 function monthsInRange(range) {
   const now = new Date();
   if (range === "thisYear" || range === "lastYear") {
@@ -609,47 +620,102 @@ function monthsInRange(range) {
   return arr;
 }
 
-function Compare({ transactions }) {
-  const [range, setRange] = useState("6m");
-  const monthKeys = monthsInRange(range);
-  const monthSet = new Set(monthKeys);
+function daysInRange(range) {
+  const n = range === "7d" ? 7 : range === "30d" ? 30 : 14;
+  const now = new Date();
+  const arr = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    arr.push(d.toISOString().slice(0, 10));
+  }
+  return arr;
+}
 
-  const months = {};
+function yearsInRange(range) {
+  const n = range === "3y" ? 3 : 5;
+  const now = new Date();
+  const arr = [];
+  for (let i = n - 1; i >= 0; i--) arr.push(String(now.getFullYear() - i));
+  return arr;
+}
+
+function dayLabel(d) {
+  return new Date(d + "T00:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short" });
+}
+
+function Compare({ transactions }) {
+  const [granularity, setGranularity] = useState("monthly"); // daily | monthly | yearly
+  const [range, setRange] = useState("6m");
+  const [dayRange, setDayRange] = useState("14d");
+  const [yearRange, setYearRange] = useState("5y");
+
+  let bucketKeys, getBucketKey, getLabel, rangeLabel;
+  if (granularity === "daily") {
+    bucketKeys = daysInRange(dayRange);
+    getBucketKey = (t) => t.date;
+    getLabel = dayLabel;
+    rangeLabel = DAILY_RANGES.find(r => r.id === dayRange)?.label || "";
+  } else if (granularity === "yearly") {
+    bucketKeys = yearsInRange(yearRange);
+    getBucketKey = (t) => t.date.slice(0, 4);
+    getLabel = (y) => y;
+    rangeLabel = YEARLY_RANGES.find(r => r.id === yearRange)?.label || "";
+  } else {
+    bucketKeys = monthsInRange(range);
+    getBucketKey = (t) => t.date.slice(0, 7);
+    getLabel = monthLabel;
+    rangeLabel = COMPARE_RANGES.find(r => r.id === range)?.label || "";
+  }
+  const bucketSet = new Set(bucketKeys);
+
+  const buckets = {};
   transactions.forEach(t => {
-    const m = t.date.slice(0,7);
-    if (!months[m]) months[m] = { month: m, income: 0, expense: 0 };
-    months[m][t.type] += t.amount;
+    const k = getBucketKey(t);
+    if (!buckets[k]) buckets[k] = { income: 0, expense: 0 };
+    buckets[k][t.type] += t.amount;
   });
-  const monthData = monthKeys
-    .map(m => ({ month: m, income: months[m]?.income || 0, expense: months[m]?.expense || 0, label: monthLabel(m) }));
+  const chartData = bucketKeys.map(k => ({ key: k, income: buckets[k]?.income || 0, expense: buckets[k]?.expense || 0, label: getLabel(k) }));
 
   const catTotals = {};
-  transactions.filter(t => t.type === "expense" && monthSet.has(t.date.slice(0,7))).forEach(t => {
+  transactions.filter(t => t.type === "expense" && bucketSet.has(getBucketKey(t))).forEach(t => {
     catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
   });
   const pieData = Object.entries(catTotals).map(([name, value]) => ({ name, value }));
-  const rangeLabel = COMPARE_RANGES.find(r => r.id === range)?.label || "";
+
+  const rangesForGranularity = granularity === "daily" ? DAILY_RANGES : granularity === "yearly" ? YEARLY_RANGES : COMPARE_RANGES;
+  const activeRange = granularity === "daily" ? dayRange : granularity === "yearly" ? yearRange : range;
+  const setActiveRange = granularity === "daily" ? setDayRange : granularity === "yearly" ? setYearRange : setRange;
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-stone-800">Compare</h2>
+
+      <div className="flex gap-2">
+        {[{ id: "daily", label: "Daily" }, { id: "monthly", label: "Monthly" }, { id: "yearly", label: "Yearly" }].map(g => (
+          <button key={g.id} onClick={() => setGranularity(g.id)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${granularity === g.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
+            {g.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {COMPARE_RANGES.map(r => (
-          <button key={r.id} onClick={() => setRange(r.id)}
-            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${range === r.id ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+        {rangesForGranularity.map(r => (
+          <button key={r.id} onClick={() => setActiveRange(r.id)}
+            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${activeRange === r.id ? "bg-[#d4af5f] text-[#0a1628]" : "bg-white border border-stone-200 text-stone-500"}`}>
             {r.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
-        <p className="text-sm font-medium mb-4">Income vs expenses by month</p>
-        {monthData.every(m => m.income === 0 && m.expense === 0) ? <p className="text-sm text-stone-400">Add transactions to see comparisons.</p> : (
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+        <p className="text-sm font-bold text-stone-800 mb-4">Income vs expenses &middot; {rangeLabel}</p>
+        {chartData.every(m => m.income === 0 && m.expense === 0) ? <p className="text-sm text-stone-400">Add transactions to see comparisons.</p> : (
           <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthData}>
+              <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EEEEEC" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8B9195" }} axisLine={false} tickLine={false} interval={monthData.length > 8 ? 1 : 0} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8B9195" }} axisLine={false} tickLine={false} interval={chartData.length > 8 ? 1 : 0} />
                 <YAxis tick={{ fontSize: 11, fill: "#8B9195" }} axisLine={false} tickLine={false} tickFormatter={v => `${Math.round(v/1000)}k`} />
                 <Tooltip formatter={v => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E3E4E0" }} />
                 <Bar dataKey="income" fill="#3F8F6E" radius={[4,4,0,0]} name="Income" />
@@ -660,8 +726,8 @@ function Compare({ transactions }) {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
-        <p className="text-sm font-medium mb-4">Spending by head &middot; {rangeLabel}</p>
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+        <p className="text-sm font-bold text-stone-800 mb-4">Spending by head &middot; {rangeLabel}</p>
         {pieData.length === 0 ? <p className="text-sm text-stone-400">No expenses recorded in this range yet.</p> : (
           <div className="flex items-center gap-4">
             <div style={{ width: 140, height: 140 }}>
