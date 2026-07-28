@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "./firebase";
 import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
-import { Plus, X, Trash2, FileText, Lock, Download, Camera, Share2 } from "lucide-react";
+import { Plus, X, Trash2, FileText, Lock, Download, Camera, Share2, RotateCw } from "lucide-react";
 import VoiceField from "./VoiceField";
 
 const DEFAULT_VAULT_CATEGORIES = [
@@ -391,11 +391,43 @@ function Field({ label, children }) {
   );
 }
 
+function rotateDataUrl(dataUrl, degrees) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const rad = (degrees * Math.PI) / 180;
+      const swap = degrees % 180 !== 0;
+      const w = swap ? img.naturalHeight : img.naturalWidth;
+      const h = swap ? img.naturalWidth : img.naturalHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
+    };
+    img.src = dataUrl;
+  });
+}
+
 function ImageCropper({ src, onCancel, onConfirm }) {
   const imgRef = useRef(null);
   const containerRef = useRef(null);
+  const [workingSrc, setWorkingSrc] = useState(src);
+  const [imgReady, setImgReady] = useState(false);
+  const [rotating, setRotating] = useState(false);
   const [rect, setRect] = useState({ x: 8, y: 8, w: 84, h: 84 });
   const dragRef = useRef(null);
+
+  const rotate = async () => {
+    setRotating(true);
+    setImgReady(false);
+    const rotated = await rotateDataUrl(workingSrc, 90);
+    setWorkingSrc(rotated);
+    setRect({ x: 8, y: 8, w: 84, h: 84 });
+    setRotating(false);
+  };
 
   const onMove = (e) => {
     if (!dragRef.current || !containerRef.current) return;
@@ -447,15 +479,21 @@ function ImageCropper({ src, onCancel, onConfirm }) {
   };
 
   const confirm = () => {
-    if (!imgRef.current) return;
+    if (!imgRef.current || !imgReady) return;
     onConfirm(cropImageToDataUrl(imgRef.current, rect));
   };
 
   return (
     <div>
-      <p className="text-xs text-stone-500 mb-2">Document ke corners tak box adjust karein, phir crop kar dein.</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-stone-500">Document ke corners tak box adjust karein, phir crop kar dein.</p>
+        <button onClick={rotate} type="button" disabled={rotating}
+          className="flex items-center gap-1 text-xs text-stone-600 bg-stone-100 px-2.5 py-1.5 rounded-lg shrink-0 ml-2 disabled:opacity-50">
+          <RotateCw size={13} /> Rotate
+        </button>
+      </div>
       <div ref={containerRef} className="relative w-full rounded-lg overflow-hidden" style={{ touchAction: "none" }}>
-        <img ref={imgRef} src={src} alt="Scan preview" className="w-full block" draggable={false} />
+        <img ref={imgRef} src={workingSrc} alt="Scan preview" className="w-full block" draggable={false} onLoad={() => setImgReady(true)} />
         <div
           onMouseDown={onDown("move")} onTouchStart={onDown("move")}
           className="absolute border-2 border-white cursor-move"
@@ -476,7 +514,8 @@ function ImageCropper({ src, onCancel, onConfirm }) {
       </div>
       <div className="flex gap-2 mt-3">
         <button onClick={onCancel} type="button" className="flex-1 bg-stone-100 text-stone-600 py-2.5 rounded-lg text-sm font-medium">Cancel</button>
-        <button onClick={confirm} type="button" className="flex-1 bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium">Crop &amp; use</button>
+        <button onClick={confirm} type="button" disabled={!imgReady}
+          className="flex-1 bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">Crop &amp; use</button>
       </div>
     </div>
   );
