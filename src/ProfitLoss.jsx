@@ -18,15 +18,23 @@ function filterByPeriod(transactions, granularity, value) {
   return transactions.filter(t => t.date.slice(0, 4) === value);
 }
 
+function isInvestmentHead(category) {
+  return (category || "").trim().toLowerCase() === "investment";
+}
+
 function aggregateByHead(transactions, type) {
   const totals = {};
-  transactions.filter(t => t.type === type).forEach(t => {
+  transactions.filter(t => t.type === type && !(type === "income" && isInvestmentHead(t.category))).forEach(t => {
     totals[t.category] = (totals[t.category] || 0) + t.amount;
   });
   return Object.entries(totals).sort((a, b) => b[1] - a[1]);
 }
 
-function generatePLPdf(label, incomeRows, expenseRows, totalIncome, totalExpense, netProfit) {
+function totalInvestment(transactions) {
+  return transactions.filter(t => t.type === "income" && isInvestmentHead(t.category)).reduce((s, t) => s + t.amount, 0);
+}
+
+function generatePLPdf(label, incomeRows, expenseRows, totalIncome, totalExpense, netProfit, investment) {
   const docPdf = new jsPDF();
   let y = 20;
   docPdf.setFontSize(16);
@@ -87,6 +95,29 @@ function generatePLPdf(label, incomeRows, expenseRows, totalIncome, totalExpense
   const netLabel = netProfit >= 0 ? "Net Profit" : "Net Loss";
   docPdf.text(netLabel, 14, y);
   docPdf.text(Math.round(Math.abs(netProfit)).toLocaleString(), 195, y, { align: "right" });
+  docPdf.setFont(undefined, "normal");
+  y += 16;
+
+  if (y > 260) { docPdf.addPage(); y = 20; }
+  docPdf.setFontSize(14);
+  docPdf.setFont(undefined, "bold");
+  docPdf.text("Balance Sheet", 14, y);
+  docPdf.setFont(undefined, "normal");
+  y += 9;
+  docPdf.setFontSize(10);
+  docPdf.text(netLabel, 14, y);
+  docPdf.text(Math.round(Math.abs(netProfit)).toLocaleString(), 195, y, { align: "right" });
+  y += 6;
+  docPdf.text("Investment", 14, y);
+  docPdf.text(Math.round(investment).toLocaleString(), 195, y, { align: "right" });
+  y += 2;
+  y += 4;
+  docPdf.line(14, y, 196, y);
+  y += 6;
+  docPdf.setFont(undefined, "bold");
+  const capital = investment + netProfit;
+  docPdf.text("Total Capital", 14, y);
+  docPdf.text(Math.round(capital).toLocaleString(), 195, y, { align: "right" });
 
   return docPdf.output("blob");
 }
@@ -119,9 +150,11 @@ export default function ProfitLoss({ transactions }) {
   const totalIncome = incomeRows.reduce((s, [, v]) => s + v, 0);
   const totalExpense = expenseRows.reduce((s, [, v]) => s + v, 0);
   const netProfit = totalIncome - totalExpense;
+  const investment = useMemo(() => totalInvestment(periodTx), [periodTx]);
+  const totalCapital = investment + netProfit;
 
   const download = () => {
-    const blob = generatePLPdf(label, incomeRows, expenseRows, totalIncome, totalExpense, netProfit);
+    const blob = generatePLPdf(label, incomeRows, expenseRows, totalIncome, totalExpense, netProfit, investment);
     sharePL(label, blob);
   };
 
@@ -191,6 +224,24 @@ export default function ProfitLoss({ transactions }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {investment > 0 && (
+        <div className="border border-[#d4af5f]/30 bg-[#faf6ea] rounded-xl p-3.5 mb-4">
+          <p className="text-[11px] font-bold text-[#0a1628] mb-2">Balance Sheet</p>
+          <div className="flex justify-between text-xs py-0.5">
+            <span className="text-stone-600">{netProfit >= 0 ? "Net Profit" : "Net Loss"}</span>
+            <span className={`font-medium tabular-nums ${netProfit >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{fmt(Math.abs(netProfit))}</span>
+          </div>
+          <div className="flex justify-between text-xs py-0.5">
+            <span className="text-stone-600">Investment</span>
+            <span className="font-medium tabular-nums text-stone-700">{fmt(investment)}</span>
+          </div>
+          <div className="flex justify-between text-xs pt-1.5 mt-1.5 border-t border-[#d4af5f]/25">
+            <span className="font-bold text-[#0a1628]">Total Capital</span>
+            <span className="font-bold tabular-nums text-[#0a1628]">{fmt(totalCapital)}</span>
+          </div>
         </div>
       )}
 
