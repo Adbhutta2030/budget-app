@@ -213,7 +213,10 @@ export default function Ledger({ uid }) {
                       {displayLabel(p)}
                       {p.ambiguous && <Info size={12} className="text-amber-500 shrink-0" />}
                     </p>
-                    <p className="text-xs text-stone-400">{p.entries.length} entries</p>
+                    <p className="text-[11px] text-stone-400 flex items-center gap-2">
+                      <span className="text-emerald-600">Paid {fmt(p.gave)}</span>
+                      <span className="text-rose-600">Received {fmt(p.took)}</span>
+                    </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-2">
@@ -351,10 +354,20 @@ function AddLedgerModal({ existingNames, people, initial, onClose, onSave }) {
 function PersonModal({ person, onClose, onDelete, onEdit, onShare }) {
   return (
     <Modal onClose={onClose} title={displayLabel(person)}>
-      <div className={`rounded-xl p-3 mb-4 ${person.balance >= 0 ? "bg-emerald-50" : "bg-rose-50"}`}>
+      <div className={`rounded-xl p-3 mb-3 ${person.balance >= 0 ? "bg-emerald-50" : "bg-rose-50"}`}>
         <p className="text-xs text-stone-500 mb-0.5">{person.balance >= 0 ? `${person.name} ne aap ko dena hai` : `Aap ne ${person.name} ko dena hai`}</p>
         <p className={`text-xl font-medium ${person.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{fmt(Math.abs(person.balance))}</p>
         {person.phone && <p className="text-[11px] text-stone-400 mt-1">{person.phone}</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="bg-emerald-50 rounded-lg p-2.5 text-center">
+          <p className="text-[10px] text-emerald-700 font-medium">Total Paid</p>
+          <p className="text-sm font-bold text-emerald-700 tabular-nums">{fmt(person.gave)}</p>
+        </div>
+        <div className="bg-rose-50 rounded-lg p-2.5 text-center">
+          <p className="text-[10px] text-rose-700 font-medium">Total Received</p>
+          <p className="text-sm font-bold text-rose-700 tabular-nums">{fmt(person.took)}</p>
+        </div>
       </div>
 
       <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
