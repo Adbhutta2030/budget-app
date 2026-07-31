@@ -133,7 +133,10 @@ export default function Ledger({ uid }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [deletingKey, setDeletingKey] = useState(null);
+  const [deletingEntryId, setDeletingEntryId] = useState(null);
   const [openKey, setOpenKey] = useState(null);
+  const [view, setView] = useState("byParty"); // 'byParty' | 'all'
+  const [entryFilter, setEntryFilter] = useState("all"); // 'all' | 'gave' | 'took'
 
   useEffect(() => {
     (async () => {
@@ -199,6 +202,17 @@ export default function Ledger({ uid }) {
           <p className="text-sm text-stone-400">Koi record nahi hai abhi. Neeche + button se add karein.</p>
         </div>
       ) : (
+        <>
+          <div className="flex gap-2">
+            {[{ id: "byParty", label: "By Party" }, { id: "all", label: "All Entries" }].map(v => (
+              <button key={v.id} onClick={() => setView(v.id)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${view === v.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          {view === "byParty" ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-2">
           {people.map(p => (
             <div key={p.key} className="flex items-center gap-1 rounded-xl hover:bg-stone-50">
@@ -239,6 +253,18 @@ export default function Ledger({ uid }) {
             </div>
           ))}
         </div>
+          ) : (
+            <AllEntriesView
+              entries={entries}
+              filter={entryFilter}
+              setFilter={setEntryFilter}
+              onEdit={(entry) => setEditingEntry(entry)}
+              onDelete={deleteEntry}
+              deletingEntryId={deletingEntryId}
+              setDeletingEntryId={setDeletingEntryId}
+            />
+          )}
+        </>
       )}
 
       <div className="fixed bottom-5 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
@@ -348,6 +374,69 @@ function AddLedgerModal({ existingNames, people, initial, onClose, onSave }) {
         {busy ? "Saving..." : isEdit ? "Update entry" : "Save entry"}
       </button>
     </Modal>
+  );
+}
+
+function AllEntriesView({ entries, filter, setFilter, onEdit, onDelete, deletingEntryId, setDeletingEntryId }) {
+  const filtered = entries.filter(e => filter === "all" || e.direction === filter);
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const totalPayment = entries.filter(e => e.direction === "gave").reduce((s, e) => s + e.amount, 0);
+  const totalReceived = entries.filter(e => e.direction === "took").reduce((s, e) => s + e.amount, 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-emerald-50 rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-emerald-700 font-medium">Total Payments</p>
+          <p className="text-sm font-bold text-emerald-700 tabular-nums">{fmt(totalPayment)}</p>
+        </div>
+        <div className="bg-rose-50 rounded-xl p-2.5 text-center">
+          <p className="text-[10px] text-rose-700 font-medium">Total Received</p>
+          <p className="text-sm font-bold text-rose-700 tabular-nums">{fmt(totalReceived)}</p>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        {[{ id: "all", label: "All" }, { id: "gave", label: "Payment" }, { id: "took", label: "Received" }].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold ${filter === f.id ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-stone-200 p-2">
+        {sorted.length === 0 ? (
+          <p className="text-sm text-stone-400 text-center py-6">Koi entries nahi mili.</p>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {sorted.map(e => (
+              <div key={e.id} className="flex items-center justify-between py-2.5 px-1">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{e.person}</p>
+                  <p className="text-xs text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="text-right">
+                    <p className={`text-sm font-medium tabular-nums ${e.direction === "gave" ? "text-emerald-700" : "text-rose-700"}`}>{fmt(e.amount)}</p>
+                    <p className="text-[10px] text-stone-400">{e.direction === "gave" ? "Payment" : "Received"}</p>
+                  </div>
+                  <button onClick={() => onEdit(e)} className="text-stone-300 hover:text-stone-600"><Pencil size={14} /></button>
+                  {deletingEntryId === e.id ? (
+                    <button onClick={() => { onDelete(e.id); setDeletingEntryId(null); }}
+                      className="text-[10px] font-medium bg-rose-600 text-white px-2 py-1.5 rounded-lg shrink-0">
+                      Confirm
+                    </button>
+                  ) : (
+                    <button onClick={() => setDeletingEntryId(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={14} /></button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
