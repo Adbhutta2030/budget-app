@@ -123,7 +123,7 @@ export default function App() {
   }, []);
 
   if (!authChecked) {
-    return <div className="w-full min-h-screen flex items-center justify-center text-sm text-stone-400">Loading...</div>;
+    return <div className="w-full min-h-screen flex items-center justify-center text-base text-stone-400">Loading...</div>;
   }
   if (!user) {
     return <Login />;
@@ -267,7 +267,7 @@ function BudgetTracker({ uid, userEmail }) {
   const monthExpense = thisMonthTx.filter(t => t.type === "expense").reduce((s,t)=>s+t.amount,0);
 
   if (!loaded) {
-    return <div className="w-full min-h-[400px] flex items-center justify-center text-sm text-gray-400">Loading your budget...</div>;
+    return <div className="w-full min-h-[400px] flex items-center justify-center text-base text-gray-400">Loading your budget...</div>;
   }
 
   return (
@@ -305,16 +305,16 @@ function BudgetTracker({ uid, userEmail }) {
             {tab !== "bills" && (
               <button onClick={() => setShowVoiceModal(true)} aria-label="Bol kar entry karein"
                 className="flex items-center justify-center w-12 h-12 bg-rose-600 text-white rounded-full shadow-lg shrink-0">
-                <Mic size={20}/>
+                <Mic size={22}/>
               </button>
             )}
             {tab === "bills" ? (
-              <button onClick={() => setShowBillModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
-                <Plus size={18}/> Add bill
+              <button onClick={() => setShowBillModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-base font-medium">
+                <Plus size={20}/> Add bill
               </button>
             ) : (
-              <button onClick={() => setShowTxModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
-                <Plus size={18}/> Add entry
+              <button onClick={() => setShowTxModal(true)} className="flex items-center gap-2 bg-stone-900 text-white px-5 py-3 rounded-full shadow-lg text-base font-medium">
+                <Plus size={20}/> Add entry
               </button>
             )}
           </div>
@@ -358,22 +358,22 @@ function Header({ onOpenHeads, userEmail }) {
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative shrink-0">
           <div className="absolute inset-0 bg-[#d4af5f]/20 blur-lg rounded-full"></div>
-          <MbtLogo size={38} className="relative sm:w-10 sm:h-10" />
+          <MbtLogo size={42} className="relative sm:w-10 sm:h-10" />
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[#8fa5c4] text-[10px] sm:text-xs font-medium tracking-wide uppercase">
-            <Wallet size={12}/> Personal budget
+          <div className="flex items-center gap-1.5 text-[#8fa5c4] text-xs sm:text-sm font-medium tracking-wide uppercase">
+            <Wallet size={14}/> Personal budget
           </div>
-          <h1 className="text-lg sm:text-xl font-medium truncate">My finances</h1>
-          {userEmail && <p className="text-[11px] text-[#5c7398] truncate">{userEmail}</p>}
+          <h1 className="text-xl sm:text-2xl font-medium truncate">My finances</h1>
+          {userEmail && <p className="text-sm text-[#5c7398] truncate">{userEmail}</p>}
         </div>
       </div>
       <div className="flex flex-col items-end gap-2 mt-1 shrink-0">
-        <button onClick={onOpenHeads} className="flex items-center gap-1.5 text-[#8fa5c4] text-xs border border-[#d4af5f]/25 rounded-full px-2.5 sm:px-3 py-1.5 hover:text-[#d4af5f] hover:border-[#d4af5f]/60 whitespace-nowrap">
-          <Tag size={13}/> Heads
+        <button onClick={onOpenHeads} className="flex items-center gap-1.5 text-[#8fa5c4] text-sm border border-[#d4af5f]/25 rounded-full px-2.5 sm:px-3 py-1.5 hover:text-[#d4af5f] hover:border-[#d4af5f]/60 whitespace-nowrap">
+          <Tag size={15}/> Heads
         </button>
-        <button onClick={() => signOut(auth)} className="flex items-center gap-1.5 text-[#5c7398] text-xs hover:text-[#d4af5f] whitespace-nowrap">
-          <LogOut size={12}/> Log out
+        <button onClick={() => signOut(auth)} className="flex items-center gap-1.5 text-[#5c7398] text-sm hover:text-[#d4af5f] whitespace-nowrap">
+          <LogOut size={14}/> Log out
         </button>
       </div>
     </div>
@@ -396,8 +396,8 @@ function TabBar({ tab, setTab }) {
         const active = tab === t.id;
         return (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center justify-center gap-1 py-2 px-0.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all ${active ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/25 scale-[1.03]" : "text-stone-400 hover:bg-stone-50"}`}>
-            <Icon size={16} className={active ? "text-[#d4af5f]" : ""} strokeWidth={active ? 2.5 : 2} />
+            className={`flex flex-col items-center justify-center gap-1 py-2 px-0.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${active ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/25 scale-[1.03]" : "text-stone-400 hover:bg-stone-50"}`}>
+            <Icon size={18} className={active ? "text-[#d4af5f]" : ""} strokeWidth={active ? 2.5 : 2} />
             <span className="truncate w-full text-center leading-tight">{t.label}</span>
           </button>
         );
@@ -414,26 +414,26 @@ function Dashboard({ balance, monthIncome, monthExpense, transactions, bills }) 
     <div className="space-y-4">
       <div className="bg-gradient-to-br from-[#0a1628] via-[#122544] to-[#0a1628] rounded-2xl p-5 shadow-lg shadow-[#0a1628]/20 relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#d4af5f]/10 rounded-full blur-2xl pointer-events-none"></div>
-        <p className="text-[#8fa5c4] text-xs mb-1 relative">Total balance</p>
-        <p className="text-white text-3xl font-bold tabular-nums relative">{fmt(balance)}</p>
+        <p className="text-[#8fa5c4] text-sm mb-1 relative">Total balance</p>
+        <p className="text-white text-4xl font-bold tabular-nums relative">{fmt(balance)}</p>
         <div className="flex gap-4 mt-4 pt-4 border-t border-white/10 relative">
           <div className="flex-1">
-            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold mb-1"><TrendingUp size={14}/> Income (this month)</div>
-            <p className="text-lg font-bold tabular-nums text-white">{fmt(monthIncome)}</p>
+            <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold mb-1"><TrendingUp size={16}/> Income (this month)</div>
+            <p className="text-xl font-bold tabular-nums text-white">{fmt(monthIncome)}</p>
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-1.5 text-rose-400 text-xs font-semibold mb-1"><TrendingDown size={14}/> Expenses (this month)</div>
-            <p className="text-lg font-bold tabular-nums text-white">{fmt(monthExpense)}</p>
+            <div className="flex items-center gap-1.5 text-rose-400 text-sm font-semibold mb-1"><TrendingDown size={16}/> Expenses (this month)</div>
+            <p className="text-xl font-bold tabular-nums text-white">{fmt(monthExpense)}</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-md hover:shadow-lg transition-shadow">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-bold text-stone-800">Upcoming deadlines</p>
+          <p className="text-base font-bold text-stone-800">Upcoming deadlines</p>
         </div>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-stone-400">No pending bills. You're all caught up.</p>
+          <p className="text-base text-stone-400">No pending bills. You're all caught up.</p>
         ) : (
           <div className="space-y-3">
             {upcoming.map(b => <BillRow key={b.id} bill={b} compact />)}
@@ -441,8 +441,8 @@ function Dashboard({ balance, monthIncome, monthExpense, transactions, bills }) 
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-        <p className="text-sm font-bold text-stone-800 mb-3">Recent activity</p>
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-md hover:shadow-lg transition-shadow">
+        <p className="text-base font-bold text-stone-800 mb-3">Recent activity</p>
         <div className="divide-y divide-stone-100">
           {recent.map(t => <TxRow key={t.id} tx={t} />)}
         </div>
@@ -469,15 +469,15 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
         <div className="flex items-center gap-3 min-w-0">
           {!compact && (
             <button onClick={() => setShowReadingModal(true)} title="Log new reading" className="text-stone-300 hover:text-emerald-600 shrink-0">
-              <Gauge size={18}/>
+              <Gauge size={20}/>
             </button>
           )}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <Wrench size={12} className="text-stone-400 shrink-0" />
-              <p className="text-sm font-medium truncate">{bill.title}</p>
+              <Wrench size={14} className="text-stone-400 shrink-0" />
+              <p className="text-base font-medium truncate">{bill.title}</p>
             </div>
-            <p className="text-xs text-stone-400">Current: {bill.currentReading} {bill.readingUnit} &middot; Next: {bill.nextReading} {bill.readingUnit}</p>
+            <p className="text-sm text-stone-400">Current: {bill.currentReading} {bill.readingUnit} &middot; Next: {bill.nextReading} {bill.readingUnit}</p>
             <div className="w-full h-1.5 bg-stone-100 rounded-full mt-1.5 overflow-hidden">
               <div className="h-full bg-[#d4af5f]" style={{ width: `${progress}%` }}></div>
             </div>
@@ -485,7 +485,7 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {!compact && onDelete && (
-            <button onClick={() => onDelete(bill.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={15}/></button>
+            <button onClick={() => onDelete(bill.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={17}/></button>
           )}
         </div>
         {showReadingModal && (
@@ -502,16 +502,16 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
         {readingResult && (
           <Modal title="Reading saved" onClose={() => setReadingResult(null)}>
             {readingResult.diff > 0 && (
-              <p className="text-sm text-amber-700 mb-3">Aap ne apni assigned limit se <strong>{readingResult.diff} {readingResult.unit} extra</strong> use ki (late change).</p>
+              <p className="text-base text-amber-700 mb-3">Aap ne apni assigned limit se <strong>{readingResult.diff} {readingResult.unit} extra</strong> use ki (late change).</p>
             )}
             {readingResult.diff < 0 && (
-              <p className="text-sm text-emerald-700 mb-3">Aap ne apni assigned limit se <strong>{Math.abs(readingResult.diff)} {readingResult.unit} less</strong> use ki (early change).</p>
+              <p className="text-base text-emerald-700 mb-3">Aap ne apni assigned limit se <strong>{Math.abs(readingResult.diff)} {readingResult.unit} less</strong> use ki (early change).</p>
             )}
             {readingResult.diff === 0 && (
-              <p className="text-sm text-stone-700 mb-3">Bilkul apni assigned limit par change kiya.</p>
+              <p className="text-base text-stone-700 mb-3">Bilkul apni assigned limit par change kiya.</p>
             )}
-            <p className="text-sm text-stone-500 mb-4">Agli limit due: <strong>{readingResult.newNext} {readingResult.unit}</strong></p>
-            <button onClick={() => setReadingResult(null)} className="w-full bg-stone-900 text-white rounded-lg py-2.5 text-sm font-medium">OK</button>
+            <p className="text-base text-stone-500 mb-4">Agli limit due: <strong>{readingResult.newNext} {readingResult.unit}</strong></p>
+            <button onClick={() => setReadingResult(null)} className="w-full bg-stone-900 text-white rounded-lg py-2.5 text-base font-medium">OK</button>
           </Modal>
         )}
       </div>
@@ -530,21 +530,21 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
         {!compact && (
           isRecurring ? (
             <button onClick={() => onToggle(bill.id)} title="Mark done — repeats automatically" className="text-stone-300 hover:text-emerald-600">
-              <RotateCw size={18}/>
+              <RotateCw size={20}/>
             </button>
           ) : (
             <button onClick={() => onToggle(bill.id)} className={bill.paid ? "text-emerald-600" : "text-stone-300"}>
-              <CheckCircle2 size={20}/>
+              <CheckCircle2 size={22}/>
             </button>
           )
         )}
         <div>
           <div className="flex items-center gap-1.5">
-            {isMaintenance && <Wrench size={12} className="text-stone-400 shrink-0" />}
-            {isTask && <ListChecks size={12} className="text-stone-400 shrink-0" />}
-            <p className={`text-sm font-medium ${bill.paid ? "line-through text-stone-400" : ""}`}>{bill.title}</p>
+            {isMaintenance && <Wrench size={14} className="text-stone-400 shrink-0" />}
+            {isTask && <ListChecks size={14} className="text-stone-400 shrink-0" />}
+            <p className={`text-base font-medium ${bill.paid ? "line-through text-stone-400" : ""}`}>{bill.title}</p>
           </div>
-          <p className="text-xs text-stone-400">
+          <p className="text-sm text-stone-400">
             {bill.amount > 0 ? `${fmt(bill.amount)} · ` : ""}{bill.paid ? `completed ${bill.completedAt || ""}` : `due ${bill.dueDate}`}
             {isMaintenance && bill.recurring && ` · ${RECURRING_LABELS[bill.recurring] || `every ${bill.recurring}d`}`}
             {bill.recurDay && ` · har mahine ${bill.recurDay} tareekh`}
@@ -553,13 +553,13 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
       </div>
       <div className="flex items-center gap-2">
         {!bill.paid && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 ${overdue ? "bg-rose-50 text-rose-700" : soon ? "bg-amber-50 text-amber-700" : "bg-stone-100 text-stone-500"}`}>
-            {overdue && <AlertCircle size={12}/>}
+          <span className={`text-sm font-medium px-2 py-1 rounded-full flex items-center gap-1 ${overdue ? "bg-rose-50 text-rose-700" : soon ? "bg-amber-50 text-amber-700" : "bg-stone-100 text-stone-500"}`}>
+            {overdue && <AlertCircle size={14}/>}
             {overdue ? `${Math.abs(days)}d overdue` : days === 0 ? "Due today" : `${days}d left`}
           </span>
         )}
         {!compact && onDelete && (
-          <button onClick={() => onDelete(bill.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={15}/></button>
+          <button onClick={() => onDelete(bill.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={17}/></button>
         )}
       </div>
     </div>
@@ -572,14 +572,14 @@ function ReadingModal({ bill, onClose, onSave }) {
   const valid = !isNaN(num) && num > bill.currentReading;
   return (
     <Modal onClose={onClose} title={`Log new reading — ${bill.title}`}>
-      <p className="text-xs text-stone-400 mb-3">Pichli reading: {bill.currentReading} {bill.readingUnit} &middot; Agli due thi: {bill.nextReading} {bill.readingUnit}</p>
+      <p className="text-sm text-stone-400 mb-3">Pichli reading: {bill.currentReading} {bill.readingUnit} &middot; Agli due thi: {bill.nextReading} {bill.readingUnit}</p>
       <Field label={`Nayi reading (${bill.readingUnit})`}>
         <input type="number" value={value} onChange={e => setValue(e.target.value)} autoFocus
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
       </Field>
-      {!valid && value && <p className="text-xs text-rose-600 mb-3">Reading pichli se zyada honi chahiye.</p>}
+      {!valid && value && <p className="text-sm text-rose-600 mb-3">Reading pichli se zyada honi chahiye.</p>}
       <button onClick={() => valid && onSave(num)} disabled={!valid}
-        className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+        className="w-full bg-stone-900 text-white py-3.5 rounded-lg text-base font-medium disabled:opacity-50">
         Save reading
       </button>
     </Modal>
@@ -590,19 +590,19 @@ function TxRow({ tx, onDelete }) {
   return (
     <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: colorFor(tx.category) }}>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ background: colorFor(tx.category) }}>
           {tx.category[0]}
         </div>
         <div>
-          <p className="text-sm font-medium">{tx.category}{tx.subCategory && <span className="text-stone-400 font-normal"> &middot; {tx.subCategory}</span>}</p>
-          <p className="text-xs text-stone-400">{tx.note || "—"} &middot; {tx.date}</p>
+          <p className="text-base font-medium">{tx.category}{tx.subCategory && <span className="text-stone-400 font-normal"> &middot; {tx.subCategory}</span>}</p>
+          <p className="text-sm text-stone-400">{tx.note || "—"} &middot; {tx.date}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <p className={`text-sm font-medium tabular-nums ${tx.type === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+        <p className={`text-base font-medium tabular-nums ${tx.type === "income" ? "text-emerald-700" : "text-rose-700"}`}>
           {tx.type === "income" ? "+" : "-"}{fmt(tx.amount)}
         </p>
-        {onDelete && <button onClick={() => onDelete(tx.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={14}/></button>}
+        {onDelete && <button onClick={() => onDelete(tx.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={16}/></button>}
       </div>
     </div>
   );
@@ -613,18 +613,18 @@ function Transactions({ transactions, onDelete }) {
   const filtered = transactions.filter(t => filter === "all" || t.type === filter);
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-bold text-stone-800">Transactions</h2>
+      <h2 className="text-xl font-bold text-stone-800">Transactions</h2>
       <div className="flex gap-2">
         {["all","income","expense"].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize ${filter===f ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold capitalize ${filter===f ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
             {f}
           </button>
         ))}
       </div>
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-md hover:shadow-lg transition-shadow">
         {filtered.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-6">No transactions yet.</p>
+          <p className="text-base text-stone-400 text-center py-6">No transactions yet.</p>
         ) : (
           <div className="divide-y divide-stone-100">
             {filtered.map(t => <TxRow key={t.id} tx={t} onDelete={onDelete} />)}
@@ -656,23 +656,23 @@ function Bills({ bills, onToggle, onDelete, onUpdateReading }) {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-bold text-stone-800">Deadlines</h2>
+      <h2 className="text-xl font-bold text-stone-800">Deadlines</h2>
       {permission === "default" && (
         <button onClick={enableNotifications}
           className="w-full flex items-center gap-2 bg-white border border-stone-200 rounded-2xl p-3.5 text-left hover:border-stone-300">
           <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
-            <Bell size={15} className="text-amber-600" />
+            <Bell size={17} className="text-amber-600" />
           </div>
           <div>
-            <p className="text-xs font-medium text-stone-700">Reminders ke notifications on karein</p>
-            <p className="text-[11px] text-stone-400">Jab bill ya maintenance due ho to alert milega</p>
+            <p className="text-sm font-medium text-stone-700">Reminders ke notifications on karein</p>
+            <p className="text-sm text-stone-400">Jab bill ya maintenance due ho to alert milega</p>
           </div>
         </button>
       )}
 
       {readingBased.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <p className="text-sm font-bold text-stone-800 mb-3">Odometer / reading-based</p>
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+          <p className="text-base font-bold text-stone-800 mb-3">Odometer / reading-based</p>
           <div className="space-y-4">
             {readingBased.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} onUpdateReading={onUpdateReading} />)}
           </div>
@@ -682,7 +682,7 @@ function Bills({ bills, onToggle, onDelete, onUpdateReading }) {
       <div className="flex gap-2">
         {[{ id: "active", label: "Active" }, { id: "history", label: "History" }].map(v => (
           <button key={v.id} onClick={() => setView(v.id)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${view === v.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
+            className={`flex-1 py-1.5 rounded-lg text-sm font-bold ${view === v.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
             {v.label}
           </button>
         ))}
@@ -691,16 +691,16 @@ function Bills({ bills, onToggle, onDelete, onUpdateReading }) {
       {view === "history" && (
         <div className="flex gap-2">
           <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} placeholder="From"
-            className="flex-1 border border-stone-200 rounded-lg px-2.5 py-2 text-xs outline-none focus:border-stone-400" />
+            className="flex-1 border border-stone-200 rounded-lg px-2.5 py-2 text-sm outline-none focus:border-stone-400" />
           <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} placeholder="To"
-            className="flex-1 border border-stone-200 rounded-lg px-2.5 py-2 text-xs outline-none focus:border-stone-400" />
+            className="flex-1 border border-stone-200 rounded-lg px-2.5 py-2 text-sm outline-none focus:border-stone-400" />
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm hover:shadow-md transition-shadow">
         {view === "active" ? (
           active.length === 0 ? (
-            <p className="text-sm text-stone-400 text-center py-6">No active deadlines.</p>
+            <p className="text-base text-stone-400 text-center py-6">No active deadlines.</p>
           ) : (
             <div className="space-y-4">
               {active.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} onUpdateReading={onUpdateReading} />)}
@@ -708,7 +708,7 @@ function Bills({ bills, onToggle, onDelete, onUpdateReading }) {
           )
         ) : (
           history.length === 0 ? (
-            <p className="text-sm text-stone-400 text-center py-6">Is date range mein koi completed item nahi.</p>
+            <p className="text-base text-stone-400 text-center py-6">Is date range mein koi completed item nahi.</p>
           ) : (
             <div className="space-y-4">
               {history.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} onUpdateReading={onUpdateReading} />)}
@@ -822,12 +822,12 @@ function Compare({ transactions }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-stone-800">Compare</h2>
+      <h2 className="text-xl font-bold text-stone-800">Compare</h2>
 
       <div className="flex gap-2">
         {[{ id: "daily", label: "Daily" }, { id: "monthly", label: "Monthly" }, { id: "yearly", label: "Yearly" }].map(g => (
           <button key={g.id} onClick={() => setGranularity(g.id)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${granularity === g.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
+            className={`flex-1 py-1.5 rounded-lg text-sm font-bold ${granularity === g.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
             {g.label}
           </button>
         ))}
@@ -836,15 +836,15 @@ function Compare({ transactions }) {
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {rangesForGranularity.map(r => (
           <button key={r.id} onClick={() => setActiveRange(r.id)}
-            className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${activeRange === r.id ? "bg-[#d4af5f] text-[#0a1628]" : "bg-white border border-stone-200 text-stone-500"}`}>
+            className={`shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full ${activeRange === r.id ? "bg-[#d4af5f] text-[#0a1628]" : "bg-white border border-stone-200 text-stone-500"}`}>
             {r.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-        <p className="text-sm font-bold text-stone-800 mb-4">Income vs expenses &middot; {rangeLabel}</p>
-        {chartData.every(m => m.income === 0 && m.expense === 0) ? <p className="text-sm text-stone-400">Add transactions to see comparisons.</p> : (
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-md hover:shadow-lg transition-shadow">
+        <p className="text-base font-bold text-stone-800 mb-4">Income vs expenses &middot; {rangeLabel}</p>
+        {chartData.every(m => m.income === 0 && m.expense === 0) ? <p className="text-base text-stone-400">Add transactions to see comparisons.</p> : (
           <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
@@ -860,9 +860,9 @@ function Compare({ transactions }) {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-        <p className="text-sm font-bold text-stone-800 mb-4">Spending by head &middot; {rangeLabel}</p>
-        {pieData.length === 0 ? <p className="text-sm text-stone-400">No expenses recorded in this range yet.</p> : (
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-md hover:shadow-lg transition-shadow">
+        <p className="text-base font-bold text-stone-800 mb-4">Spending by head &middot; {rangeLabel}</p>
+        {pieData.length === 0 ? <p className="text-base text-stone-400">No expenses recorded in this range yet.</p> : (
           <div className="flex items-center gap-4">
             <div style={{ width: 140, height: 140 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -876,7 +876,7 @@ function Compare({ transactions }) {
             </div>
             <div className="flex-1 space-y-1.5">
               {pieData.sort((a,b)=>b.value-a.value).map((d,i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
+                <div key={i} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: colorFor(d.name) }}></span>{d.name}</span>
                   <span className="font-medium tabular-nums">{fmt(d.value)}</span>
                 </div>
@@ -911,14 +911,14 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, subHeads, onManageH
       <div className="flex gap-2 mb-4">
         {["expense","income"].map(t => (
           <button key={t} onClick={() => handleType(t)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize ${type===t ? (t==="income" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "bg-stone-100 text-stone-500"}`}>
+            className={`flex-1 py-2 rounded-lg text-base font-medium capitalize ${type===t ? (t==="income" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "bg-stone-100 text-stone-500"}`}>
             {t}
           </button>
         ))}
       </div>
       <Field label="Amount">
         <div className="relative">
-          <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg pl-3 pr-11 py-2 text-sm outline-none focus:border-stone-400" />
+          <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg pl-3 pr-11 py-2 text-base outline-none focus:border-stone-400" />
           <MicButton
             className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center bg-stone-100 text-stone-500"
             onResult={(text) => { const amt = parseSpokenAmount(text); if (amt != null) setAmount(String(amt)); }}
@@ -927,12 +927,12 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, subHeads, onManageH
       </Field>
       <Field label={type === "income" ? "Income head" : "Expense head"}>
         {heads.length === 0 ? (
-          <button onClick={onManageHeads} className="w-full border border-dashed border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-500">
+          <button onClick={onManageHeads} className="w-full border border-dashed border-stone-300 rounded-lg px-3 py-2 text-base text-stone-500">
             Koi head nahi hai — pehle ek banayein
           </button>
         ) : (
           <div className="flex gap-2">
-            <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); }} className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+            <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); }} className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400">
               {heads.map(c => <option key={c}>{c}</option>)}
             </select>
             <MicButton
@@ -952,25 +952,25 @@ function TxModal({ type, setType, incomeHeads, expenseHeads, subHeads, onManageH
             />
           </div>
         )}
-        <button onClick={onManageHeads} className="text-xs text-stone-500 underline mt-1.5">Manage heads</button>
+        <button onClick={onManageHeads} className="text-sm text-stone-500 underline mt-1.5">Manage heads</button>
       </Field>
       {availableSubHeads.length > 0 && (
         <Field label="Sub-head (optional)">
-          <select value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+          <select value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400">
             <option value="">None</option>
             {availableSubHeads.map(s => <option key={s}>{s}</option>)}
           </select>
         </Field>
       )}
       <Field label="Date">
-        <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
       </Field>
       <Field label="Note (optional)">
         <VoiceField value={note} onChange={setNote} placeholder="e.g. Grocery shopping" />
       </Field>
       <button
         onClick={() => { if(!amount || parseFloat(amount)<=0 || !category) return; onSave({ type, category, subCategory: subCategory || null, amount: parseFloat(amount), date, note }); }}
-        className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
+        className="w-full bg-stone-900 text-white py-3.5 rounded-lg text-base font-medium mt-2">
         Save entry
       </button>
     </Modal>
@@ -1039,7 +1039,7 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
   return (
     <Modal onClose={onClose} title="Add entry by voice">
       {status === "unsupported" && (
-        <p className="text-sm text-stone-500">
+        <p className="text-base text-stone-500">
           Ye feature is browser mein support nahi hai. Chrome browser (Android ya Desktop) try karein.
         </p>
       )}
@@ -1047,16 +1047,16 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
       {status === "listening" && (
         <div className="flex flex-col items-center py-6 text-center">
           <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mb-3 animate-pulse">
-            <Mic size={26} className="text-rose-600" />
+            <Mic size={29} className="text-rose-600" />
           </div>
-          <p className="text-sm text-stone-600 mb-1">Sun raha hoon... bolein</p>
-          <p className="text-xs text-stone-400 mb-4">masalan: "1000 rupees food"</p>
+          <p className="text-base text-stone-600 mb-1">Sun raha hoon... bolein</p>
+          <p className="text-sm text-stone-400 mb-4">masalan: "1000 rupees food"</p>
           {transcript && (
-            <p className="text-sm text-stone-800 bg-stone-100 rounded-lg px-3 py-2 w-full">{transcript}</p>
+            <p className="text-base text-stone-800 bg-stone-100 rounded-lg px-3 py-2 w-full">{transcript}</p>
           )}
           <button
             onClick={() => startListening(lang === "en-US" ? "ur-PK" : "en-US")}
-            className="text-xs text-stone-500 underline mt-4">
+            className="text-sm text-stone-500 underline mt-4">
             {lang === "en-US" ? "Urdu mein try karein" : "English mein try karein"}
           </button>
         </div>
@@ -1064,8 +1064,8 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
 
       {status === "error" && (
         <div className="text-center py-4">
-          <p className="text-sm text-stone-500 mb-3">Awaaz samajh nahi aayi. Dobara koshish karein.</p>
-          <button onClick={() => startListening()} className="bg-stone-900 text-white text-sm px-4 py-2 rounded-lg">
+          <p className="text-base text-stone-500 mb-3">Awaaz samajh nahi aayi. Dobara koshish karein.</p>
+          <button onClick={() => startListening()} className="bg-stone-900 text-white text-base px-5 py-3 rounded-lg">
             Dobara bolein
           </button>
         </div>
@@ -1073,9 +1073,9 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
 
       {status === "reviewing" && (
         <div>
-          <p className="text-xs text-stone-400 mb-3">Aap ne kaha: <span className="italic">"{transcript}"</span></p>
+          <p className="text-sm text-stone-400 mb-3">Aap ne kaha: <span className="italic">"{transcript}"</span></p>
           {!headMatched && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-2 mb-3">
+            <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-2.5 py-2 mb-3">
               Head pehchan nahi saka — neeche se sahi head select kar lein.
             </p>
           )}
@@ -1083,21 +1083,21 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
             {["expense", "income"].map(t => (
               <button key={t}
                 onClick={() => { setType(t); const list = t === "income" ? incomeHeads : expenseHeads; setCategory(list[0] || ""); setSubCategory(""); }}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize ${type === t ? (t === "income" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "bg-stone-100 text-stone-500"}`}>
+                className={`flex-1 py-2 rounded-lg text-base font-medium capitalize ${type === t ? (t === "income" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "bg-stone-100 text-stone-500"}`}>
                 {t}
               </button>
             ))}
           </div>
           <Field label="Amount">
             <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
           </Field>
           <Field label={type === "income" ? "Income head" : "Expense head"}>
             {heads.length === 0 ? (
-              <p className="text-sm text-stone-400">Pehle koi head banayein.</p>
+              <p className="text-base text-stone-400">Pehle koi head banayein.</p>
             ) : (
               <select value={category} onChange={e => { setCategory(e.target.value); setSubCategory(""); setHeadMatched(true); }}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400">
                 {heads.map(c => <option key={c}>{c}</option>)}
               </select>
             )}
@@ -1105,19 +1105,19 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
           {(subHeads?.[category] || []).length > 0 && (
             <Field label="Sub-head">
               <select value={subCategory} onChange={e => setSubCategory(e.target.value)}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400">
                 <option value="">None</option>
                 {subHeads[category].map(s => <option key={s}>{s}</option>)}
               </select>
             </Field>
           )}
           <div className="flex gap-2 mt-2">
-            <button onClick={() => startListening()} className="flex-1 bg-stone-100 text-stone-600 py-2.5 rounded-lg text-sm font-medium">
+            <button onClick={() => startListening()} className="flex-1 bg-stone-100 text-stone-600 py-3.5 rounded-lg text-base font-medium">
               Dobara bolein
             </button>
             <button
               onClick={() => { if (!amount || parseFloat(amount) <= 0 || !category) return; onSave({ type, category, subCategory: subCategory || null, amount: parseFloat(amount), date: todayStr(), note: transcript }); }}
-              className="flex-1 bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium">
+              className="flex-1 bg-stone-900 text-white py-3.5 rounded-lg text-base font-medium">
               Save entry
             </button>
           </div>
@@ -1203,7 +1203,7 @@ function BillModal({ onClose, onSave }) {
       <div className="flex gap-2 mb-4">
         {[{ id: "bill", label: "Bill" }, { id: "maintenance", label: "Maintenance" }, { id: "task", label: "Special Task" }].map(t => (
           <button key={t.id} onClick={() => { setType(t.id); setTitle(""); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium ${type === t.id ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+            className={`flex-1 py-2 rounded-lg text-base font-medium ${type === t.id ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
             {t.label}
           </button>
         ))}
@@ -1215,7 +1215,7 @@ function BillModal({ onClose, onSave }) {
 
       {type !== "task" && (
         <Field label={type === "maintenance" ? "Amount (optional)" : "Amount"}>
-          <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
         </Field>
       )}
 
@@ -1223,23 +1223,23 @@ function BillModal({ onClose, onSave }) {
         <Field label="Due date">
           <div className="flex gap-2 mb-2">
             <button onClick={() => setDateMode("specific")} type="button"
-              className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${dateMode === "specific" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${dateMode === "specific" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
               Specific date
             </button>
             <button onClick={() => setDateMode("monthly")} type="button"
-              className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${dateMode === "monthly" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${dateMode === "monthly" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
               Har mahine is date par
             </button>
           </div>
           {dateMode === "specific" ? (
-            <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+            <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
           ) : (
             <div>
               <select value={recurDay} onChange={e => setRecurDay(e.target.value)}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400">
                 {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d} tareekh</option>)}
               </select>
-              <p className="text-[11px] text-stone-400 mt-1.5">Har mahine is din reminder khud ban jayega — is cycle ke liye due date: {computeMonthlyDueDate(Number(recurDay))}</p>
+              <p className="text-sm text-stone-400 mt-1.5">Har mahine is din reminder khud ban jayega — is cycle ke liye due date: {computeMonthlyDueDate(Number(recurDay))}</p>
             </div>
           )}
         </Field>
@@ -1247,7 +1247,7 @@ function BillModal({ onClose, onSave }) {
 
       {type === "task" && (
         <Field label="Due date">
-          <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
         </Field>
       )}
 
@@ -1256,11 +1256,11 @@ function BillModal({ onClose, onSave }) {
           <Field label="Reminder type">
             <div className="flex gap-2">
               <button onClick={() => setMaintMode("date")} type="button"
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${maintMode === "date" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+                className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${maintMode === "date" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
                 Date-based
               </button>
               <button onClick={() => setMaintMode("reading")} type="button"
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${maintMode === "reading" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+                className={`flex-1 py-1.5 rounded-lg text-sm font-medium ${maintMode === "reading" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
                 Reading-based (km)
               </button>
             </div>
@@ -1269,11 +1269,11 @@ function BillModal({ onClose, onSave }) {
           {maintMode === "date" ? (
             <>
               <Field label="Due date">
-                <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+                <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
               </Field>
               <Field label="Repeat">
                 <select value={recurring} onChange={e => setRecurring(e.target.value)}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400">
                   {RECURRING_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
                 </select>
               </Field>
@@ -1281,16 +1281,16 @@ function BillModal({ onClose, onSave }) {
           ) : (
             <>
               <Field label="Current reading">
-                <input type="number" value={startReading} onChange={e=>setStartReading(e.target.value)} placeholder="e.g. 1000" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+                <input type="number" value={startReading} onChange={e=>setStartReading(e.target.value)} placeholder="e.g. 1000" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
               </Field>
               <Field label="Change every">
-                <input type="number" value={readingInterval} onChange={e=>setReadingInterval(e.target.value)} placeholder="e.g. 2000" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+                <input type="number" value={readingInterval} onChange={e=>setReadingInterval(e.target.value)} placeholder="e.g. 2000" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
               </Field>
               <Field label="Unit">
-                <input type="text" value={readingUnit} onChange={e=>setReadingUnit(e.target.value)} placeholder="km" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+                <input type="text" value={readingUnit} onChange={e=>setReadingUnit(e.target.value)} placeholder="km" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
               </Field>
               {startReading && readingInterval && (
-                <p className="text-[11px] text-stone-400 -mt-2 mb-3">Agli change {Number(startReading) + Number(readingInterval)} {readingUnit || "km"} par due hogi.</p>
+                <p className="text-sm text-stone-400 -mt-2 mb-3">Agli change {Number(startReading) + Number(readingInterval)} {readingUnit || "km"} par due hogi.</p>
               )}
             </>
           )}
@@ -1298,7 +1298,7 @@ function BillModal({ onClose, onSave }) {
       )}
       <button
         onClick={submit}
-        className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
+        className="w-full bg-stone-900 text-white py-3.5 rounded-lg text-base font-medium mt-2">
         {type === "maintenance" ? "Add reminder" : type === "task" ? "Add special task" : "Add deadline"}
       </button>
     </Modal>
@@ -1333,7 +1333,7 @@ function HeadsModal({ incomeHeads, expenseHeads, subHeads, onAdd, onRename, onDe
       <div className="flex gap-2 mb-4">
         {["expense","income"].map(t => (
           <button key={t} onClick={() => { setTab(t); setExpanded(null); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize ${tab===t ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+            className={`flex-1 py-2 rounded-lg text-base font-medium capitalize ${tab===t ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
             {t} heads
           </button>
         ))}
@@ -1343,12 +1343,12 @@ function HeadsModal({ incomeHeads, expenseHeads, subHeads, onAdd, onRename, onDe
         <input type="text" value={newHead} onChange={e=>setNewHead(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") submitNew(); }}
           placeholder={tab === "income" ? "e.g. Rental income" : "e.g. Fuel"}
-          className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
-        <button onClick={submitNew} className="bg-stone-900 text-white px-3 rounded-lg"><Plus size={16}/></button>
+          className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
+        <button onClick={submitNew} className="bg-stone-900 text-white px-3 rounded-lg"><Plus size={18}/></button>
       </div>
 
       <div className="space-y-1.5 max-h-72 overflow-y-auto">
-        {heads.length === 0 && <p className="text-sm text-stone-400 text-center py-4">Koi head nahi hai. Upar se ek add karein.</p>}
+        {heads.length === 0 && <p className="text-base text-stone-400 text-center py-4">Koi head nahi hai. Upar se ek add karein.</p>}
         {heads.map(h => {
           const subs = subHeads?.[h] || [];
           const isOpen = expanded === h;
@@ -1358,42 +1358,42 @@ function HeadsModal({ incomeHeads, expenseHeads, subHeads, onAdd, onRename, onDe
                 {editing === h ? (
                   <input autoFocus value={editValue} onChange={e=>setEditValue(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && editValue.trim()) { onRename(tab, h, editValue.trim()); setEditing(null); } }}
-                    className="flex-1 border border-stone-300 rounded px-2 py-1 text-sm outline-none mr-2" />
+                    className="flex-1 border border-stone-300 rounded px-2 py-1 text-base outline-none mr-2" />
                 ) : (
-                  <button onClick={() => setExpanded(isOpen ? null : h)} className="flex items-center gap-2 text-sm flex-1 text-left">
-                    <ChevronRight size={14} className={`text-stone-400 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                  <button onClick={() => setExpanded(isOpen ? null : h)} className="flex items-center gap-2 text-base flex-1 text-left">
+                    <ChevronRight size={16} className={`text-stone-400 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorFor(h) }}></span>
                     {h}
-                    <span className="text-[10px] text-stone-400">{subs.length > 0 ? `(${subs.length} sub-heads)` : "(add sub-heads)"}</span>
+                    <span className="text-xs text-stone-400">{subs.length > 0 ? `(${subs.length} sub-heads)` : "(add sub-heads)"}</span>
                   </button>
                 )}
                 <div className="flex items-center gap-1 shrink-0">
                   {editing === h ? (
-                    <button onClick={() => { if(editValue.trim()){ onRename(tab, h, editValue.trim()); } setEditing(null); }} className="text-emerald-600 text-xs font-medium px-2">Save</button>
+                    <button onClick={() => { if(editValue.trim()){ onRename(tab, h, editValue.trim()); } setEditing(null); }} className="text-emerald-600 text-sm font-medium px-2">Save</button>
                   ) : (
-                    <button onClick={() => { setEditing(h); setEditValue(h); }} className="text-stone-400 hover:text-stone-700"><Pencil size={14}/></button>
+                    <button onClick={() => { setEditing(h); setEditValue(h); }} className="text-stone-400 hover:text-stone-700"><Pencil size={16}/></button>
                   )}
-                  <button onClick={() => onDelete(tab, h)} className="text-stone-400 hover:text-rose-500"><Trash2 size={14}/></button>
+                  <button onClick={() => onDelete(tab, h)} className="text-stone-400 hover:text-rose-500"><Trash2 size={16}/></button>
                 </div>
               </div>
               {isOpen && (
                 <div className="bg-stone-50 px-3 py-2.5 border-t border-stone-100">
-                  <p className="text-[10px] text-stone-400 mb-1.5">Sub-heads (e.g. Chicken, Beef, Mutton under Ration)</p>
+                  <p className="text-xs text-stone-400 mb-1.5">Sub-heads (e.g. Chicken, Beef, Mutton under Ration)</p>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {subs.map(s => (
-                      <span key={s} className="flex items-center gap-1 text-xs bg-white border border-stone-200 rounded-full px-2 py-1">
+                      <span key={s} className="flex items-center gap-1 text-sm bg-white border border-stone-200 rounded-full px-2 py-1">
                         {s}
-                        <button onClick={() => onDeleteSub(h, s)} className="text-stone-400 hover:text-rose-500"><X size={11}/></button>
+                        <button onClick={() => onDeleteSub(h, s)} className="text-stone-400 hover:text-rose-500"><X size={13}/></button>
                       </span>
                     ))}
-                    {subs.length === 0 && <span className="text-xs text-stone-400">Koi sub-head nahi hai</span>}
+                    {subs.length === 0 && <span className="text-sm text-stone-400">Koi sub-head nahi hai</span>}
                   </div>
                   <div className="flex gap-1.5">
                     <input type="text" value={newSub} onChange={e => setNewSub(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") submitNewSub(h); }}
                       placeholder="e.g. Chicken"
-                      className="flex-1 border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-stone-400" />
-                    <button onClick={() => submitNewSub(h)} className="bg-stone-900 text-white px-2.5 rounded-lg text-xs">Add</button>
+                      className="flex-1 border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-stone-400" />
+                    <button onClick={() => submitNewSub(h)} className="bg-stone-900 text-white px-2.5 rounded-lg text-sm">Add</button>
                   </div>
                 </div>
               )}
@@ -1408,7 +1408,7 @@ function HeadsModal({ incomeHeads, expenseHeads, subHeads, onAdd, onRename, onDe
 function Field({ label, children }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs font-medium text-stone-500 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-stone-500 mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -1419,8 +1419,8 @@ function Modal({ title, onClose, children }) {
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={onClose}>
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-base font-medium">{title}</p>
-          <button onClick={onClose} className="text-stone-400"><X size={20}/></button>
+          <p className="text-lg font-medium">{title}</p>
+          <button onClick={onClose} className="text-stone-400"><X size={22}/></button>
         </div>
         {children}
       </div>
