@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw, Users, ChevronRight } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw, Users, ChevronRight, Gauge, ListChecks } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -185,7 +185,7 @@ function BudgetTracker({ uid, userEmail }) {
   useEffect(() => {
     if (!loaded) return;
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    const due = bills.filter(b => !b.paid && daysUntil(b.dueDate) <= 3);
+    const due = bills.filter(b => !b.paid && !b.readingBased && daysUntil(b.dueDate) <= 3);
     if (due.length === 0) return;
     const alreadyShown = sessionStorage.getItem("reminders-shown-" + todayStr());
     if (alreadyShown) return;
@@ -213,9 +213,15 @@ function BudgetTracker({ uid, userEmail }) {
       next.setDate(next.getDate() + Number(b.recurring));
       return { ...b, dueDate: next.toISOString().slice(0, 10), lastDone: todayStr(), paid: false };
     }
-    return { ...b, paid: !b.paid };
+    const nowPaid = !b.paid;
+    return { ...b, paid: nowPaid, completedAt: nowPaid ? todayStr() : null };
   }));
   const deleteBill = (id) => setBills(prev => prev.filter(b => b.id !== id));
+  const updateReading = (id, newReading) => setBills(prev => prev.map(b => {
+    if (b.id !== id) return b;
+    const history = [...(b.readingHistory || []), { reading: newReading, date: todayStr() }];
+    return { ...b, currentReading: newReading, nextReading: newReading + Number(b.readingInterval), readingHistory: history, lastDone: todayStr() };
+  }));
 
   const addHead = (type, name) => {
     if (type === "income") setIncomeHeads(prev => prev.includes(name) ? prev : [...prev, name]);
@@ -277,7 +283,7 @@ function BudgetTracker({ uid, userEmail }) {
           <Transactions transactions={transactions} onDelete={deleteTransaction} />
         )}
         {tab === "bills" && (
-          <Bills bills={bills} onToggle={toggleBillPaid} onDelete={deleteBill} />
+          <Bills bills={bills} onToggle={toggleBillPaid} onDelete={deleteBill} onUpdateReading={updateReading} />
         )}
         {tab === "compare" && (
           <div className="space-y-4">
@@ -401,7 +407,7 @@ function TabBar({ tab, setTab }) {
 }
 
 function Dashboard({ balance, monthIncome, monthExpense, transactions, bills }) {
-  const upcoming = bills.filter(b => !b.paid).sort((a,b) => a.dueDate.localeCompare(b.dueDate)).slice(0,3);
+  const upcoming = bills.filter(b => !b.paid && !b.readingBased).sort((a,b) => a.dueDate.localeCompare(b.dueDate)).slice(0,3);
   const recent = transactions.slice(0,4);
 
   return (
@@ -452,11 +458,48 @@ function daysUntil(dateStr) {
 
 const RECURRING_LABELS = { 30: "monthly", 90: "every 3 months", 180: "every 6 months", 365: "yearly" };
 
-function BillRow({ bill, onToggle, onDelete, compact }) {
+function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
+  const [showReadingModal, setShowReadingModal] = useState(false);
+
+  if (bill.readingBased) {
+    const progress = Math.min(100, Math.max(0, ((bill.currentReading - (bill.nextReading - bill.readingInterval)) / bill.readingInterval) * 100));
+    return (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          {!compact && (
+            <button onClick={() => setShowReadingModal(true)} title="Log new reading" className="text-stone-300 hover:text-emerald-600 shrink-0">
+              <Gauge size={18}/>
+            </button>
+          )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <Wrench size={12} className="text-stone-400 shrink-0" />
+              <p className="text-sm font-medium truncate">{bill.title}</p>
+            </div>
+            <p className="text-xs text-stone-400">Current: {bill.currentReading} {bill.readingUnit} &middot; Next: {bill.nextReading} {bill.readingUnit}</p>
+            <div className="w-full h-1.5 bg-stone-100 rounded-full mt-1.5 overflow-hidden">
+              <div className="h-full bg-[#d4af5f]" style={{ width: `${progress}%` }}></div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {!compact && onDelete && (
+            <button onClick={() => onDelete(bill.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={15}/></button>
+          )}
+        </div>
+        {showReadingModal && (
+          <ReadingModal bill={bill} onClose={() => setShowReadingModal(false)}
+            onSave={(val) => { onUpdateReading(bill.id, val); setShowReadingModal(false); }} />
+        )}
+      </div>
+    );
+  }
+
   const days = daysUntil(bill.dueDate);
   const overdue = !bill.paid && days < 0;
   const soon = !bill.paid && days >= 0 && days <= 3;
   const isMaintenance = bill.type === "maintenance";
+  const isTask = bill.type === "task";
   const isRecurring = bill.recurDay || (isMaintenance && bill.recurring);
   return (
     <div className="flex items-center justify-between">
@@ -475,10 +518,11 @@ function BillRow({ bill, onToggle, onDelete, compact }) {
         <div>
           <div className="flex items-center gap-1.5">
             {isMaintenance && <Wrench size={12} className="text-stone-400 shrink-0" />}
+            {isTask && <ListChecks size={12} className="text-stone-400 shrink-0" />}
             <p className={`text-sm font-medium ${bill.paid ? "line-through text-stone-400" : ""}`}>{bill.title}</p>
           </div>
           <p className="text-xs text-stone-400">
-            {bill.amount > 0 ? `${fmt(bill.amount)} · ` : ""}due {bill.dueDate}
+            {bill.amount > 0 ? `${fmt(bill.amount)} · ` : ""}{bill.paid ? `completed ${bill.completedAt || ""}` : `due ${bill.dueDate}`}
             {isMaintenance && bill.recurring && ` · ${RECURRING_LABELS[bill.recurring] || `every ${bill.recurring}d`}`}
             {bill.recurDay && ` · har mahine ${bill.recurDay} tareekh`}
           </p>
@@ -496,6 +540,26 @@ function BillRow({ bill, onToggle, onDelete, compact }) {
         )}
       </div>
     </div>
+  );
+}
+
+function ReadingModal({ bill, onClose, onSave }) {
+  const [value, setValue] = useState(String(bill.currentReading));
+  const num = parseFloat(value);
+  const valid = !isNaN(num) && num > bill.currentReading;
+  return (
+    <Modal onClose={onClose} title={`Log new reading — ${bill.title}`}>
+      <p className="text-xs text-stone-400 mb-3">Pichli reading: {bill.currentReading} {bill.readingUnit} &middot; Agli due thi: {bill.nextReading} {bill.readingUnit}</p>
+      <Field label={`Nayi reading (${bill.readingUnit})`}>
+        <input type="number" value={value} onChange={e => setValue(e.target.value)} autoFocus
+          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+      </Field>
+      {!valid && value && <p className="text-xs text-rose-600 mb-3">Reading pichli se zyada honi chahiye.</p>}
+      <button onClick={() => valid && onSave(num)} disabled={!valid}
+        className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+        Save reading
+      </button>
+    </Modal>
   );
 }
 
@@ -548,15 +612,24 @@ function Transactions({ transactions, onDelete }) {
   );
 }
 
-function Bills({ bills, onToggle, onDelete }) {
-  const sorted = [...bills].sort((a,b) => (a.paid - b.paid) || a.dueDate.localeCompare(b.dueDate));
+function Bills({ bills, onToggle, onDelete, onUpdateReading }) {
   const [permission, setPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+  const [view, setView] = useState("active"); // 'active' | 'history'
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const enableNotifications = async () => {
     if (typeof Notification === "undefined") return;
     const result = await Notification.requestPermission();
     setPermission(result);
   };
+
+  const readingBased = bills.filter(b => b.readingBased);
+  const dateDriven = bills.filter(b => !b.readingBased);
+  const active = dateDriven.filter(b => !b.paid).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const history = dateDriven.filter(b => b.paid)
+    .filter(b => (!fromDate || (b.completedAt || "") >= fromDate) && (!toDate || (b.completedAt || "") <= toDate))
+    .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
 
   return (
     <div className="space-y-3">
@@ -573,13 +646,51 @@ function Bills({ bills, onToggle, onDelete }) {
           </div>
         </button>
       )}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
-        {sorted.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-6">No bills added yet.</p>
-        ) : (
+
+      {readingBased.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <p className="text-sm font-bold text-stone-800 mb-3">Odometer / reading-based</p>
           <div className="space-y-4">
-            {sorted.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} />)}
+            {readingBased.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} onUpdateReading={onUpdateReading} />)}
           </div>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        {[{ id: "active", label: "Active" }, { id: "history", label: "History" }].map(v => (
+          <button key={v.id} onClick={() => setView(v.id)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${view === v.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "history" && (
+        <div className="flex gap-2">
+          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} placeholder="From"
+            className="flex-1 border border-stone-200 rounded-lg px-2.5 py-2 text-xs outline-none focus:border-stone-400" />
+          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} placeholder="To"
+            className="flex-1 border border-stone-200 rounded-lg px-2.5 py-2 text-xs outline-none focus:border-stone-400" />
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+        {view === "active" ? (
+          active.length === 0 ? (
+            <p className="text-sm text-stone-400 text-center py-6">No active deadlines.</p>
+          ) : (
+            <div className="space-y-4">
+              {active.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} onUpdateReading={onUpdateReading} />)}
+            </div>
+          )
+        ) : (
+          history.length === 0 ? (
+            <p className="text-sm text-stone-400 text-center py-6">Is date range mein koi completed item nahi.</p>
+          ) : (
+            <div className="space-y-4">
+              {history.map(b => <BillRow key={b.id} bill={b} onToggle={onToggle} onDelete={onDelete} onUpdateReading={onUpdateReading} />)}
+            </div>
+          )
         )}
       </div>
     </div>
@@ -993,7 +1104,6 @@ function VoiceModal({ incomeHeads, expenseHeads, subHeads, onClose, onSave }) {
   );
 }
 
-const MAINTENANCE_PRESETS = ["Engine oil change", "Car service", "Tyre change", "Insurance renewal", "Filter change", "Custom"];
 const RECURRING_OPTIONS = [
   { label: "Never (one-time)", value: "" },
   { label: "Every month", value: 30 },
@@ -1024,17 +1134,36 @@ function advanceOneMonth(dateStr, day) {
 }
 
 function BillModal({ onClose, onSave }) {
-  const [type, setType] = useState("bill");
+  const [type, setType] = useState("bill"); // 'bill' | 'maintenance' | 'task'
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [dateMode, setDateMode] = useState("specific"); // 'specific' | 'monthly'
   const [dueDate, setDueDate] = useState(todayStr());
   const [recurDay, setRecurDay] = useState(new Date().getDate());
   const [recurring, setRecurring] = useState("");
+  const [maintMode, setMaintMode] = useState("date"); // 'date' | 'reading'
+  const [startReading, setStartReading] = useState("");
+  const [readingInterval, setReadingInterval] = useState("");
+  const [readingUnit, setReadingUnit] = useState("km");
 
   const submit = () => {
     if (!title.trim()) return;
     if (type === "bill" && (!amount || parseFloat(amount) <= 0)) return;
+
+    if (type === "maintenance" && maintMode === "reading") {
+      const start = parseFloat(startReading), interval = parseFloat(readingInterval);
+      if (!start || !interval) return;
+      onSave({
+        type, title: title.trim(), amount: amount ? parseFloat(amount) : 0,
+        readingBased: true,
+        currentReading: start, readingInterval: interval, nextReading: start + interval,
+        readingUnit: readingUnit.trim() || "km",
+        readingHistory: [{ reading: start, date: todayStr() }],
+        dueDate: todayStr(), recurDay: null, recurring: null,
+      });
+      return;
+    }
+
     const finalDueDate = type === "bill" && dateMode === "monthly" ? computeMonthlyDueDate(Number(recurDay)) : dueDate;
     onSave({
       type,
@@ -1047,9 +1176,9 @@ function BillModal({ onClose, onSave }) {
   };
 
   return (
-    <Modal onClose={onClose} title={type === "maintenance" ? "Add maintenance reminder" : "Add payment deadline"}>
+    <Modal onClose={onClose} title={type === "maintenance" ? "Add maintenance reminder" : type === "task" ? "Add task" : "Add payment deadline"}>
       <div className="flex gap-2 mb-4">
-        {[{ id: "bill", label: "Bill payment" }, { id: "maintenance", label: "Maintenance" }].map(t => (
+        {[{ id: "bill", label: "Bill" }, { id: "maintenance", label: "Maintenance" }, { id: "task", label: "Task" }].map(t => (
           <button key={t.id} onClick={() => { setType(t.id); setTitle(""); }}
             className={`flex-1 py-2 rounded-lg text-sm font-medium ${type === t.id ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
             {t.label}
@@ -1057,27 +1186,15 @@ function BillModal({ onClose, onSave }) {
         ))}
       </div>
 
-      {type === "maintenance" ? (
-        <Field label="What needs attention?">
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {MAINTENANCE_PRESETS.map(p => (
-              <button key={p} onClick={() => setTitle(p === "Custom" ? "" : p)}
-                className={`text-xs px-2.5 py-1.5 rounded-full border ${title === p ? "bg-stone-900 text-white border-stone-900" : "bg-white border-stone-200 text-stone-600"}`}>
-                {p}
-              </button>
-            ))}
-          </div>
-          <VoiceField value={title} onChange={setTitle} placeholder="e.g. Engine oil change" />
-        </Field>
-      ) : (
-        <Field label="Bill title">
-          <VoiceField value={title} onChange={setTitle} placeholder="e.g. Internet bill" />
+      <Field label={type === "maintenance" ? "What needs attention?" : type === "task" ? "Task" : "Bill title"}>
+        <VoiceField value={title} onChange={setTitle} placeholder={type === "maintenance" ? "e.g. Engine oil change" : type === "task" ? "e.g. Renew CNIC" : "e.g. Internet bill"} />
+      </Field>
+
+      {type !== "task" && (
+        <Field label={type === "maintenance" ? "Amount (optional)" : "Amount"}>
+          <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
         </Field>
       )}
-
-      <Field label={type === "maintenance" ? "Amount (optional)" : "Amount"}>
-        <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
-      </Field>
 
       {type === "bill" && (
         <Field label="Due date">
@@ -1105,23 +1222,61 @@ function BillModal({ onClose, onSave }) {
         </Field>
       )}
 
+      {type === "task" && (
+        <Field label="Due date">
+          <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+        </Field>
+      )}
+
       {type === "maintenance" && (
         <>
-          <Field label="Due date">
-            <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          <Field label="Reminder type">
+            <div className="flex gap-2">
+              <button onClick={() => setMaintMode("date")} type="button"
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${maintMode === "date" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+                Date-based
+              </button>
+              <button onClick={() => setMaintMode("reading")} type="button"
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${maintMode === "reading" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
+                Reading-based (km)
+              </button>
+            </div>
           </Field>
-          <Field label="Repeat">
-            <select value={recurring} onChange={e => setRecurring(e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
-              {RECURRING_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
-            </select>
-          </Field>
+
+          {maintMode === "date" ? (
+            <>
+              <Field label="Due date">
+                <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+              </Field>
+              <Field label="Repeat">
+                <select value={recurring} onChange={e => setRecurring(e.target.value)}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400">
+                  {RECURRING_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="Current reading">
+                <input type="number" value={startReading} onChange={e=>setStartReading(e.target.value)} placeholder="e.g. 1000" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+              </Field>
+              <Field label="Change every">
+                <input type="number" value={readingInterval} onChange={e=>setReadingInterval(e.target.value)} placeholder="e.g. 2000" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+              </Field>
+              <Field label="Unit">
+                <input type="text" value={readingUnit} onChange={e=>setReadingUnit(e.target.value)} placeholder="km" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+              </Field>
+              {startReading && readingInterval && (
+                <p className="text-[11px] text-stone-400 -mt-2 mb-3">Agli change {Number(startReading) + Number(readingInterval)} {readingUnit || "km"} par due hogi.</p>
+              )}
+            </>
+          )}
         </>
       )}
       <button
         onClick={submit}
         className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
-        {type === "maintenance" ? "Add reminder" : "Add deadline"}
+        {type === "maintenance" ? "Add reminder" : type === "task" ? "Add task" : "Add deadline"}
       </button>
     </Modal>
   );
