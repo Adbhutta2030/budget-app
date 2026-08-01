@@ -1176,9 +1176,9 @@ function BillModal({ onClose, onSave }) {
   };
 
   return (
-    <Modal onClose={onClose} title={type === "maintenance" ? "Add maintenance reminder" : type === "task" ? "Add task" : "Add payment deadline"}>
+    <Modal onClose={onClose} title={type === "maintenance" ? "Add maintenance reminder" : type === "task" ? "Add special task" : "Add payment deadline"}>
       <div className="flex gap-2 mb-4">
-        {[{ id: "bill", label: "Bill" }, { id: "maintenance", label: "Maintenance" }, { id: "task", label: "Task" }].map(t => (
+        {[{ id: "bill", label: "Bill" }, { id: "maintenance", label: "Maintenance" }, { id: "task", label: "Special Task" }].map(t => (
           <button key={t.id} onClick={() => { setType(t.id); setTitle(""); }}
             className={`flex-1 py-2 rounded-lg text-sm font-medium ${type === t.id ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>
             {t.label}
@@ -1186,7 +1186,7 @@ function BillModal({ onClose, onSave }) {
         ))}
       </div>
 
-      <Field label={type === "maintenance" ? "What needs attention?" : type === "task" ? "Task" : "Bill title"}>
+      <Field label={type === "maintenance" ? "What needs attention?" : type === "task" ? "Special Task" : "Bill title"}>
         <VoiceField value={title} onChange={setTitle} placeholder={type === "maintenance" ? "e.g. Engine oil change" : type === "task" ? "e.g. Renew CNIC" : "e.g. Internet bill"} />
       </Field>
 
@@ -1276,7 +1276,7 @@ function BillModal({ onClose, onSave }) {
       <button
         onClick={submit}
         className="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium mt-2">
-        {type === "maintenance" ? "Add reminder" : type === "task" ? "Add task" : "Add deadline"}
+        {type === "maintenance" ? "Add reminder" : type === "task" ? "Add special task" : "Add deadline"}
       </button>
     </Modal>
   );
