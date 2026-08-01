@@ -460,6 +460,7 @@ const RECURRING_LABELS = { 30: "monthly", 90: "every 3 months", 180: "every 6 mo
 
 function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
   const [showReadingModal, setShowReadingModal] = useState(false);
+  const [readingResult, setReadingResult] = useState(null);
 
   if (bill.readingBased) {
     const progress = Math.min(100, Math.max(0, ((bill.currentReading - (bill.nextReading - bill.readingInterval)) / bill.readingInterval) * 100));
@@ -495,14 +496,23 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
               const newNext = val + Number(bill.readingInterval);
               onUpdateReading(bill.id, val);
               setShowReadingModal(false);
-              if (diff > 0) {
-                alert(`${bill.title}: aap ne apni assigned limit se ${diff} ${bill.readingUnit} extra use ki (late change).\nAgli limit due: ${newNext} ${bill.readingUnit}`);
-              } else if (diff < 0) {
-                alert(`${bill.title}: aap ne apni assigned limit se ${Math.abs(diff)} ${bill.readingUnit} less use ki (early change).\nAgli limit due: ${newNext} ${bill.readingUnit}`);
-              } else {
-                alert(`${bill.title}: bilkul apni assigned limit par change kiya.\nAgli limit due: ${newNext} ${bill.readingUnit}`);
-              }
+              setReadingResult({ diff, newNext, unit: bill.readingUnit });
             }} />
+        )}
+        {readingResult && (
+          <Modal title="Reading saved" onClose={() => setReadingResult(null)}>
+            {readingResult.diff > 0 && (
+              <p className="text-sm text-amber-700 mb-3">Aap ne apni assigned limit se <strong>{readingResult.diff} {readingResult.unit} extra</strong> use ki (late change).</p>
+            )}
+            {readingResult.diff < 0 && (
+              <p className="text-sm text-emerald-700 mb-3">Aap ne apni assigned limit se <strong>{Math.abs(readingResult.diff)} {readingResult.unit} less</strong> use ki (early change).</p>
+            )}
+            {readingResult.diff === 0 && (
+              <p className="text-sm text-stone-700 mb-3">Bilkul apni assigned limit par change kiya.</p>
+            )}
+            <p className="text-sm text-stone-500 mb-4">Agli limit due: <strong>{readingResult.newNext} {readingResult.unit}</strong></p>
+            <button onClick={() => setReadingResult(null)} className="w-full bg-stone-900 text-white rounded-lg py-2.5 text-sm font-medium">OK</button>
+          </Modal>
         )}
       </div>
     );
