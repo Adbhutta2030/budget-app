@@ -489,7 +489,20 @@ function BillRow({ bill, onToggle, onDelete, onUpdateReading, compact }) {
         </div>
         {showReadingModal && (
           <ReadingModal bill={bill} onClose={() => setShowReadingModal(false)}
-            onSave={(val) => { onUpdateReading(bill.id, val); setShowReadingModal(false); }} />
+            onSave={(val) => {
+              const prevNext = bill.nextReading;
+              const diff = val - prevNext;
+              const newNext = val + Number(bill.readingInterval);
+              onUpdateReading(bill.id, val);
+              setShowReadingModal(false);
+              if (diff > 0) {
+                alert(`${bill.title}: aap ne apni assigned limit se ${diff} ${bill.readingUnit} extra use ki (late change).\nAgli limit due: ${newNext} ${bill.readingUnit}`);
+              } else if (diff < 0) {
+                alert(`${bill.title}: aap ne apni assigned limit se ${Math.abs(diff)} ${bill.readingUnit} less use ki (early change).\nAgli limit due: ${newNext} ${bill.readingUnit}`);
+              } else {
+                alert(`${bill.title}: bilkul apni assigned limit par change kiya.\nAgli limit due: ${newNext} ${bill.readingUnit}`);
+              }
+            }} />
         )}
       </div>
     );
