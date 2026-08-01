@@ -52,7 +52,7 @@ export function MicButton({ onResult, className }) {
       onClick={toggle}
       title="Bol kar bharein"
       className={className || `w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${listening ? "bg-rose-600 text-white animate-pulse" : "bg-stone-100 text-stone-500"}`}>
-      {listening ? <Square size={13} /> : <Mic size={15} />}
+      {listening ? <Square size={15} /> : <Mic size={17} />}
     </button>
   );
 }
@@ -96,14 +96,14 @@ export default function VoiceField({ value, onChange, placeholder, className, li
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         list={listId}
-        className="w-full border border-stone-200 rounded-lg pl-3 pr-10 py-2 text-sm outline-none focus:border-stone-400"
+        className="w-full border border-stone-200 rounded-lg pl-3 pr-10 py-2 text-base outline-none focus:border-stone-400"
       />
       <button
         type="button"
         onClick={toggleMic}
         title="Bol kar likhein"
         className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center ${listening ? "bg-rose-600 text-white animate-pulse" : "bg-stone-100 text-stone-500"}`}>
-        {listening ? <Square size={12} /> : <Mic size={13} />}
+        {listening ? <Square size={14} /> : <Mic size={15} />}
       </button>
     </div>
   );
