@@ -179,7 +179,7 @@ export default function Ledger({ uid }) {
   };
 
   if (!loaded) {
-    return <div className="w-full min-h-[300px] flex items-center justify-center text-sm text-stone-400">Loading...</div>;
+    return <div className="w-full min-h-[300px] flex items-center justify-center text-base text-stone-400">Loading...</div>;
   }
 
   const openPerson = openKey ? people.find(p => p.key === openKey) : null;
@@ -187,67 +187,67 @@ export default function Ledger({ uid }) {
 
   return (
     <div className="space-y-4 pb-24">
-      <h2 className="text-lg font-medium text-stone-800">Accounts</h2>
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 flex items-start gap-3">
+      <h2 className="text-xl font-medium text-stone-800">Accounts</h2>
+      <div className="bg-white rounded-2xl border border-stone-200 p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition-shadow">
         <div className="w-9 h-9 rounded-full bg-[#0a1628] flex items-center justify-center shrink-0">
-          <Users size={16} className="text-[#d4af5f]" />
+          <Users size={18} className="text-[#d4af5f]" />
         </div>
-        <p className="text-xs text-stone-500">
+        <p className="text-sm text-stone-500">
           Lena-dena ka hisaab yahan rakhein — har shaks ka alag record.
         </p>
       </div>
 
       {people.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-8 text-center">
-          <p className="text-sm text-stone-400">Koi record nahi hai abhi. Neeche + button se add karein.</p>
+        <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-8 text-center shadow-sm hover:shadow-md transition-shadow">
+          <p className="text-base text-stone-400">Koi record nahi hai abhi. Neeche + button se add karein.</p>
         </div>
       ) : (
         <>
           <div className="flex gap-2">
             {[{ id: "byParty", label: "By Party" }, { id: "all", label: "All Entries" }].map(v => (
               <button key={v.id} onClick={() => setView(v.id)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${view === v.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
+                className={`flex-1 py-1.5 rounded-lg text-sm font-bold ${view === v.id ? "bg-[#0a1628] text-white" : "bg-stone-100 text-stone-500"}`}>
                 {v.label}
               </button>
             ))}
           </div>
 
           {view === "byParty" ? (
-        <div className="bg-white rounded-2xl border border-stone-200 p-2">
+        <div className="bg-white rounded-2xl border border-stone-200 p-2 shadow-sm hover:shadow-md transition-shadow">
           {people.map(p => (
             <div key={p.key} className="flex items-center gap-1 rounded-xl hover:bg-stone-50">
               <button onClick={() => setOpenKey(p.key)}
                 className="flex-1 flex items-center justify-between p-3 text-left min-w-0">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0" style={{ background: p.balance >= 0 ? "#3F8F6E" : "#B8555A" }}>
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0" style={{ background: p.balance >= 0 ? "#3F8F6E" : "#B8555A" }}>
                     {p.name[0]?.toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium flex items-center gap-1.5 truncate">
+                    <p className="text-base font-medium flex items-center gap-1.5 truncate">
                       {displayLabel(p)}
-                      {p.ambiguous && <Info size={12} className="text-amber-500 shrink-0" />}
+                      {p.ambiguous && <Info size={14} className="text-amber-500 shrink-0" />}
                     </p>
-                    <p className="text-[11px] text-stone-400 flex items-center gap-2">
+                    <p className="text-sm text-stone-400 flex items-center gap-2">
                       <span className="text-emerald-600">Paid {fmt(p.gave)}</span>
                       <span className="text-rose-600">Received {fmt(p.took)}</span>
                     </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-2">
-                  <p className={`text-sm font-medium tabular-nums ${p.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                  <p className={`text-base font-medium tabular-nums ${p.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
                     {fmt(Math.abs(p.balance))}
                   </p>
-                  <p className="text-[10px] text-stone-400">{p.balance >= 0 ? "lena hai" : "dena hai"}</p>
+                  <p className="text-xs text-stone-400">{p.balance >= 0 ? "lena hai" : "dena hai"}</p>
                 </div>
               </button>
               {deletingKey === p.key ? (
                 <button onClick={() => { deletePersonEntries(p); setDeletingKey(null); }}
-                  className="text-[10px] font-medium bg-rose-600 text-white px-2 py-1.5 rounded-lg shrink-0 mr-2">
+                  className="text-xs font-medium bg-rose-600 text-white px-2 py-1.5 rounded-lg shrink-0 mr-2">
                   Confirm
                 </button>
               ) : (
                 <button onClick={() => setDeletingKey(p.key)} className="text-stone-300 hover:text-rose-500 shrink-0 mr-2 p-1">
-                  <Trash2 size={15} />
+                  <Trash2 size={17} />
                 </button>
               )}
             </div>
@@ -269,8 +269,8 @@ export default function Ledger({ uid }) {
 
       <div className="fixed bottom-5 right-1/2 translate-x-[calc(50%+0px)] max-w-2xl w-full px-4 pointer-events-none" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex justify-end pointer-events-auto">
-          <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 bg-[#0a1628] text-white px-5 py-3 rounded-full shadow-lg text-sm font-medium">
-            <Plus size={18} /> Add entry
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 bg-[#0a1628] text-white px-5 py-3 rounded-full shadow-lg text-base font-medium">
+            <Plus size={20} /> Add entry
           </button>
         </div>
       </div>
@@ -334,12 +334,12 @@ function AddLedgerModal({ existingNames, people, initial, onClose, onSave }) {
     <Modal onClose={onClose} title={isEdit ? "Edit entry" : "Add payment or receipt"}>
       <div className="flex gap-2 mb-4">
         <button onClick={() => setDirection("gave")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "gave" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}>
-          <ArrowUpRight size={14} /> Payment (Diya)
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-base font-medium ${direction === "gave" ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}>
+          <ArrowUpRight size={16} /> Payment (Diya)
         </button>
         <button onClick={() => setDirection("took")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium ${direction === "took" ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-500"}`}>
-          <ArrowDownLeft size={14} /> Received (Liya)
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-base font-medium ${direction === "took" ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-500"}`}>
+          <ArrowDownLeft size={16} /> Received (Liya)
         </button>
       </div>
       <Field label="Kis ka naam?">
@@ -349,28 +349,28 @@ function AddLedgerModal({ existingNames, people, initial, onClose, onSave }) {
         </datalist>
       </Field>
       {nameMatches && matchCount >= 1 && (
-        <div className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-2 mb-3 flex items-start gap-1.5">
-          <Info size={13} className="shrink-0 mt-0.5" />
+        <div className="text-sm text-amber-700 bg-amber-50 rounded-lg px-2.5 py-2 mb-3 flex items-start gap-1.5">
+          <Info size={15} className="shrink-0 mt-0.5" />
           <span>Is naam se pehle bhi record(s) hain. Agar ye koi doosra shaks hai (same naam), to neeche phone number zaroor dalein taake data mix na ho.</span>
         </div>
       )}
       <Field label="Phone number (agar naam repeat ho to zaroori)">
         <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 0301-1234567"
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
       </Field>
       <Field label="Amount">
         <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0"
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
       </Field>
       <Field label="Tareekh">
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400" />
+          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-base outline-none focus:border-stone-400" />
       </Field>
       <Field label="Note (optional)">
         <VoiceField value={note} onChange={setNote} placeholder="e.g. Udhaar for shopping" />
       </Field>
       <button onClick={save} disabled={busy || !person.trim() || !amount}
-        className="w-full bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+        className="w-full bg-[#0a1628] text-white py-2.5 rounded-lg text-base font-medium disabled:opacity-50">
         {busy ? "Saving..." : isEdit ? "Update entry" : "Save entry"}
       </button>
     </Modal>
@@ -387,48 +387,48 @@ function AllEntriesView({ entries, filter, setFilter, onEdit, onDelete, deleting
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-emerald-50 rounded-xl p-2.5 text-center">
-          <p className="text-[10px] text-emerald-700 font-medium">Total Payments</p>
-          <p className="text-sm font-bold text-emerald-700 tabular-nums">{fmt(totalPayment)}</p>
+          <p className="text-xs text-emerald-700 font-medium">Total Payments</p>
+          <p className="text-base font-bold text-emerald-700 tabular-nums">{fmt(totalPayment)}</p>
         </div>
         <div className="bg-rose-50 rounded-xl p-2.5 text-center">
-          <p className="text-[10px] text-rose-700 font-medium">Total Received</p>
-          <p className="text-sm font-bold text-rose-700 tabular-nums">{fmt(totalReceived)}</p>
+          <p className="text-xs text-rose-700 font-medium">Total Received</p>
+          <p className="text-base font-bold text-rose-700 tabular-nums">{fmt(totalReceived)}</p>
         </div>
       </div>
 
       <div className="flex gap-2">
         {[{ id: "all", label: "All" }, { id: "gave", label: "Payment" }, { id: "took", label: "Received" }].map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold ${filter === f.id ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold ${filter === f.id ? "bg-[#0a1628] text-white" : "bg-white border border-stone-200 text-stone-500"}`}>
             {f.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-2">
+      <div className="bg-white rounded-2xl border border-stone-200 p-2 shadow-sm hover:shadow-md transition-shadow">
         {sorted.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-6">Koi entries nahi mili.</p>
+          <p className="text-base text-stone-400 text-center py-6">Koi entries nahi mili.</p>
         ) : (
           <div className="divide-y divide-stone-100">
             {sorted.map(e => (
               <div key={e.id} className="flex items-center justify-between py-2.5 px-1">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{e.person}</p>
-                  <p className="text-xs text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
+                  <p className="text-base font-medium truncate">{e.person}</p>
+                  <p className="text-sm text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <div className="text-right">
-                    <p className={`text-sm font-medium tabular-nums ${e.direction === "gave" ? "text-emerald-700" : "text-rose-700"}`}>{fmt(e.amount)}</p>
-                    <p className="text-[10px] text-stone-400">{e.direction === "gave" ? "Payment" : "Received"}</p>
+                    <p className={`text-base font-medium tabular-nums ${e.direction === "gave" ? "text-emerald-700" : "text-rose-700"}`}>{fmt(e.amount)}</p>
+                    <p className="text-xs text-stone-400">{e.direction === "gave" ? "Payment" : "Received"}</p>
                   </div>
-                  <button onClick={() => onEdit(e)} className="text-stone-300 hover:text-stone-600"><Pencil size={14} /></button>
+                  <button onClick={() => onEdit(e)} className="text-stone-300 hover:text-stone-600"><Pencil size={16} /></button>
                   {deletingEntryId === e.id ? (
                     <button onClick={() => { onDelete(e.id); setDeletingEntryId(null); }}
-                      className="text-[10px] font-medium bg-rose-600 text-white px-2 py-1.5 rounded-lg shrink-0">
+                      className="text-xs font-medium bg-rose-600 text-white px-2 py-1.5 rounded-lg shrink-0">
                       Confirm
                     </button>
                   ) : (
-                    <button onClick={() => setDeletingEntryId(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={14} /></button>
+                    <button onClick={() => setDeletingEntryId(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={16} /></button>
                   )}
                 </div>
               </div>
@@ -444,42 +444,42 @@ function PersonModal({ person, onClose, onDelete, onEdit, onShare }) {
   return (
     <Modal onClose={onClose} title={displayLabel(person)}>
       <div className={`rounded-xl p-3 mb-3 ${person.balance >= 0 ? "bg-emerald-50" : "bg-rose-50"}`}>
-        <p className="text-xs text-stone-500 mb-0.5">{person.balance >= 0 ? `${person.name} ne aap ko dena hai` : `Aap ne ${person.name} ko dena hai`}</p>
-        <p className={`text-xl font-medium ${person.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{fmt(Math.abs(person.balance))}</p>
-        {person.phone && <p className="text-[11px] text-stone-400 mt-1">{person.phone}</p>}
+        <p className="text-sm text-stone-500 mb-0.5">{person.balance >= 0 ? `${person.name} ne aap ko dena hai` : `Aap ne ${person.name} ko dena hai`}</p>
+        <p className={`text-2xl font-medium ${person.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{fmt(Math.abs(person.balance))}</p>
+        {person.phone && <p className="text-sm text-stone-400 mt-1">{person.phone}</p>}
       </div>
       <div className="grid grid-cols-2 gap-2 mb-4">
         <div className="bg-emerald-50 rounded-lg p-2.5 text-center">
-          <p className="text-[10px] text-emerald-700 font-medium">Total Paid</p>
-          <p className="text-sm font-bold text-emerald-700 tabular-nums">{fmt(person.gave)}</p>
+          <p className="text-xs text-emerald-700 font-medium">Total Paid</p>
+          <p className="text-base font-bold text-emerald-700 tabular-nums">{fmt(person.gave)}</p>
         </div>
         <div className="bg-rose-50 rounded-lg p-2.5 text-center">
-          <p className="text-[10px] text-rose-700 font-medium">Total Received</p>
-          <p className="text-sm font-bold text-rose-700 tabular-nums">{fmt(person.took)}</p>
+          <p className="text-xs text-rose-700 font-medium">Total Received</p>
+          <p className="text-base font-bold text-rose-700 tabular-nums">{fmt(person.took)}</p>
         </div>
       </div>
 
       <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
         {person.entries.slice().reverse().map(e => (
-          <div key={e.id} className="flex items-center justify-between text-sm border-b border-stone-100 pb-2">
+          <div key={e.id} className="flex items-center justify-between text-base border-b border-stone-100 pb-2">
             <div>
               <p className={e.direction === "gave" ? "text-emerald-700" : "text-rose-700"}>
                 {e.direction === "gave" ? "Payment" : "Received"} &middot; {fmt(e.amount)}
               </p>
-              <p className="text-xs text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
+              <p className="text-sm text-stone-400">{e.date}{e.note ? ` · ${e.note}` : ""}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => onEdit(e)} className="text-stone-300 hover:text-stone-600"><Pencil size={14} /></button>
-              <button onClick={() => onDelete(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={14} /></button>
+              <button onClick={() => onEdit(e)} className="text-stone-300 hover:text-stone-600"><Pencil size={16} /></button>
+              <button onClick={() => onDelete(e.id)} className="text-stone-300 hover:text-rose-500"><Trash2 size={16} /></button>
             </div>
           </div>
         ))}
       </div>
 
-      <button onClick={onShare} className="w-full flex items-center justify-center gap-2 bg-[#0a1628] text-white py-2.5 rounded-lg text-sm font-medium">
-        <Share2 size={15} /> Statement PDF banayein aur bhejein
+      <button onClick={onShare} className="w-full flex items-center justify-center gap-2 bg-[#0a1628] text-white py-2.5 rounded-lg text-base font-medium">
+        <Share2 size={17} /> Statement PDF banayein aur bhejein
       </button>
-      <p className="text-[10px] text-stone-400 text-center mt-2">
+      <p className="text-xs text-stone-400 text-center mt-2">
         Mobile par WhatsApp seedha khulega file ke sath; desktop par PDF download ho kar WhatsApp Web khulega, wahan attach kar dein.
       </p>
     </Modal>
@@ -489,7 +489,7 @@ function PersonModal({ person, onClose, onDelete, onEdit, onShare }) {
 function Field({ label, children }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs font-medium text-stone-500 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-stone-500 mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -500,8 +500,8 @@ function Modal({ title, onClose, children }) {
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={onClose}>
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-base font-medium truncate pr-2">{title}</p>
-          <button onClick={onClose} className="text-stone-400 shrink-0"><X size={20} /></button>
+          <p className="text-lg font-medium truncate pr-2">{title}</p>
+          <button onClick={onClose} className="text-stone-400 shrink-0"><X size={22} /></button>
         </div>
         {children}
       </div>
