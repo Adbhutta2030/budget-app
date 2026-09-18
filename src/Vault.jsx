@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { db } from "./firebase";
-import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { api } from "./api";
 import { Plus, X, Trash2, FileText, Lock, Download, Camera, Share2 } from "lucide-react";
 import VoiceField from "./VoiceField";
 
@@ -95,11 +94,9 @@ export default function Vault({ uid }) {
   useEffect(() => {
     (async () => {
       try {
-        const q = query(collection(db, "budgets", uid, "vault"), orderBy("createdAt", "desc"));
-        const snap = await getDocs(q);
-        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        const catSnap = await getDoc(doc(db, "budgets", uid, "meta", "vaultCategories"));
-        setCustomCategories(catSnap.exists() ? (catSnap.data().list || []) : []);
+        const { items: fetchedItems, categories } = await api.getVault();
+        setItems(fetchedItems || []);
+        setCustomCategories(categories || []);
       } catch (e) {
         console.error("Failed to load vault items:", e);
       }
@@ -112,21 +109,19 @@ export default function Vault({ uid }) {
     const next = [...customCategories, name];
     setCustomCategories(next);
     try {
-      await setDoc(doc(db, "budgets", uid, "meta", "vaultCategories"), { list: next });
+      await api.saveVaultCategories(next);
     } catch (e) {
       console.error("Failed to save category:", e);
     }
   };
 
   const addItem = async (data) => {
-    const ref = doc(collection(db, "budgets", uid, "vault"));
-    const record = { ...data, createdAt: new Date().toISOString() };
-    await setDoc(ref, record);
-    setItems(prev => [{ id: ref.id, ...record }, ...prev]);
+    const record = await api.addVaultItem(data);
+    setItems(prev => [record, ...prev]);
   };
 
   const deleteItem = async (id) => {
-    await deleteDoc(doc(db, "budgets", uid, "vault", id));
+    await api.deleteVaultItem(id);
     setItems(prev => prev.filter(i => i.id !== id));
     setViewing(null);
   };

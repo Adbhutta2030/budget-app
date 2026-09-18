@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, TrendingUp, TrendingDown, Wallet, Calendar, BarChart3, X, Trash2, CheckCircle2, AlertCircle, Tag, Pencil, LogOut, Mic, Lock, Wrench, Bell, RotateCw, Users, ChevronRight, Gauge, ListChecks } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { auth, db } from "./firebase";
+import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { api } from "./api";
 import Login from "./Login";
 import Vault from "./Vault";
 import Ledger from "./Ledger";
@@ -148,10 +148,8 @@ function BudgetTracker({ uid, userEmail }) {
   useEffect(() => {
     (async () => {
       try {
-        const ref = doc(db, "budgets", uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const data = snap.data();
+        const data = await api.getBudget();
+        if (data && Object.keys(data).length > 0) {
           setTransactions(data.transactions || seedTransactions);
           setBills(data.bills || seedBills);
           setIncomeHeads(data.incomeHeads || DEFAULT_INCOME_HEADS);
@@ -176,8 +174,7 @@ function BudgetTracker({ uid, userEmail }) {
 
   useEffect(() => {
     if (!loaded) return;
-    const ref = doc(db, "budgets", uid);
-    setDoc(ref, { transactions, bills, incomeHeads, expenseHeads, subHeads, updatedAt: new Date().toISOString() })
+    api.saveBudget({ transactions, bills, incomeHeads, expenseHeads, subHeads, updatedAt: new Date().toISOString() })
       .catch(e => console.error("Failed to save budget data:", e));
   }, [transactions, bills, incomeHeads, expenseHeads, subHeads, loaded, uid]);
 

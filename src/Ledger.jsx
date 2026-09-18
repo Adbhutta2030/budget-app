@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { db } from "./firebase";
-import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { api } from "./api";
 import { Plus, X, Trash2, Share2, Users, ArrowDownLeft, ArrowUpRight, Info, Pencil } from "lucide-react";
 import { jsPDF } from "jspdf";
 import VoiceField from "./VoiceField";
@@ -141,9 +140,8 @@ export default function Ledger({ uid }) {
   useEffect(() => {
     (async () => {
       try {
-        const q = query(collection(db, "budgets", uid, "ledger"), orderBy("date", "desc"));
-        const snap = await getDocs(q);
-        setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const rows = await api.getLedger();
+        setEntries(rows || []);
       } catch (e) {
         console.error("Failed to load ledger:", e);
       }
@@ -154,28 +152,24 @@ export default function Ledger({ uid }) {
   const people = useMemo(() => buildPeople(entries), [entries]);
 
   const addEntry = async (data) => {
-    const ref = doc(collection(db, "budgets", uid, "ledger"));
-    const record = { ...data, createdAt: new Date().toISOString() };
-    await setDoc(ref, record);
-    setEntries(prev => [{ id: ref.id, ...record }, ...prev]);
+    const record = await api.addLedgerEntry(data);
+    setEntries(prev => [record, ...prev]);
   };
 
   const deleteEntry = async (id) => {
-    await deleteDoc(doc(db, "budgets", uid, "ledger", id));
+    await api.deleteLedgerEntry(id);
     setEntries(prev => prev.filter(e => e.id !== id));
   };
 
   const deletePersonEntries = async (person) => {
-    await Promise.all(person.entries.map(e => deleteDoc(doc(db, "budgets", uid, "ledger", e.id))));
+    await Promise.all(person.entries.map(e => api.deleteLedgerEntry(e.id)));
     const ids = new Set(person.entries.map(e => e.id));
     setEntries(prev => prev.filter(e => !ids.has(e.id)));
   };
 
   const updateEntry = async (id, data) => {
-    const existing = entries.find(e => e.id === id);
-    const record = { ...data, createdAt: existing?.createdAt || new Date().toISOString() };
-    await setDoc(doc(db, "budgets", uid, "ledger", id), record);
-    setEntries(prev => prev.map(e => (e.id === id ? { id, ...record } : e)));
+    const record = await api.updateLedgerEntry(id, data);
+    setEntries(prev => prev.map(e => (e.id === id ? record : e)));
   };
 
   if (!loaded) {

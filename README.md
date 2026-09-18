@@ -1,88 +1,76 @@
 # My Budget Tracker
 
+## Architecture
+
+- **Login** → Firebase Authentication (email/password) — koi data yahan store nahi hota, sirf pehchan (identity) ke liye
+- **Data** (transactions, bills, ledger, Vault documents) → Railway Postgres database, ek Node.js backend (`/backend` folder) ke zariye
+- **Frontend** → React (Vite), jo backend ko authenticated API calls karta hai
+
 ## Step 1 — Apne computer par test karein
 
-1. Node.js install karein (agar pehle se nahi hai): https://nodejs.org (LTS version download karein)
-2. Ye folder kisi bhi jagah unzip/extract karein
-3. Terminal / Command Prompt kholein, is folder mein jayein:
-   ```
-   cd budget-app
-   ```
-4. Dependencies install karein:
-   ```
-   npm install
-   ```
-5. App start karein:
-   ```
-   npm run dev
-   ```
-6. Terminal mein jo link dikhega (e.g. `http://localhost:5173`) usay browser mein kholein
+1. Node.js install karein (agar pehle se nahi hai): https://nodejs.org (LTS version)
+2. Ye folder unzip/extract karein
+3. Do terminal windows kholein — ek frontend ke liye, ek backend ke liye
 
-### Apne phone se bhi test karna hai (same wifi par)?
-`npm run dev` chalane ke baad terminal mein ek "Network" link bhi milega (e.g. `http://192.168.x.x:5173`) — wo link apne phone ke browser mein kholein, bas dono devices ek hi wifi par hone chahiye.
-
-## Step 2 — Internet par free publish karein
-
-**Sabse aasan tareeqa: Vercel**
-
-1. https://vercel.com par free account banayein (GitHub se login kar sakte hain)
-2. Apna code GitHub par upload karein (github.com par new repository banayein, is folder ka content upload karein)
-3. Vercel mein "Add New Project" karein, apni GitHub repository select karein
-4. Vercel khud detect kar lega ke ye Vite project hai — bas "Deploy" par click karein
-5. 1-2 minute mein aapko ek live link mil jayega (e.g. `your-app.vercel.app`) jo kisi ko bhi bhej sakte hain
-
-**Alternative: Netlify Drop (bina GitHub ke)**
-
-1. Terminal mein: `npm run build` chalayein — ye ek `dist` folder banayega
-2. https://app.netlify.com/drop par jayein
-3. `dist` folder ko wahan drag-and-drop karein
-4. Turant ek live link mil jayega
-
-## Firebase setup (zaroori — is ke bina app nahi chalegi)
-
-Ab ye app cloud database (Firebase) use karti hai, taake aap phone aur laptop dono par **same email se login** kar ke wahi data dekh sakein.
-
-### A. Firebase project banayein (free)
-1. https://console.firebase.google.com par jayein, Google account se login karein
-2. "Add project" par click karein, koi bhi naam dein (e.g. "my-budget-app"), continue karte jayein (Google Analytics ki zaroorat nahi, off kar dein)
-
-### B. Authentication (login system) enable karein
-1. Left sidebar mein **Build → Authentication** par jayein
-2. "Get started" click karein
-3. "Email/Password" provider select karein, enable karein, Save karein
-
-### C. Firestore (database) banayein
-1. Left sidebar mein **Build → Firestore Database** par jayein
-2. "Create database" click karein
-3. **"Start in test mode"** select karein (demo ke liye theek hai — real users ke liye baad mein security rules set karni hongi, neeche note dekhein)
-4. Koi bhi region choose kar lein, "Enable" karein
-
-### D. Apni app ko Firebase se connect karein
-1. Project Overview (home icon, top-left) par jayein
-2. Web icon (`</>`) par click karein, app ka nickname dein (e.g. "budget-web"), "Register app"
-3. Jo `firebaseConfig` object dikhega (apiKey, authDomain, wagera), usay copy karein
-4. Apne code mein `src/firebase.js` file kholein, `firebaseConfig` ki saari `"PASTE_..."` values ko apni actual copied values se replace karein
-5. Save karein
-
-### E. Chalayein
+**Backend (pehle ye chalayein):**
 ```
+cd budget-app/backend
 npm install
+# .env file banayein (.env.example se copy karein) aur DATABASE_URL + FIREBASE_SERVICE_ACCOUNT bharein
+npm start
+```
+
+**Frontend:**
+```
+cd budget-app
+npm install
+# .env.local file banayein (.env.example se copy karein) aur saari values bharein
 npm run dev
 ```
-Ab browser mein app khulegi, "Sign up" se ek email/password bana ke account create karein. Dusre device (phone/laptop) par bhi yehi app khol kar **same email/password se login** karein — data automatically sync ho jayega.
 
-### Security note (zaroori)
-"Test mode" 30 din baad expire ho jata hai aur database ko sab ke liye publicly readable/writable chor deta hai. Real use ke liye, Firestore → Rules mein jaa kar ye rules paste karein (sirf logged-in user apna hi data padh/likh sake):
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /budgets/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-```
+## Step 2 — Firebase setup (sirf login ke liye)
+
+### A. Firebase project banayein
+1. https://console.firebase.google.com par project banayein
+2. **Build → Authentication → Get started → Email/Password** provider enable karein
+
+### B. Web app register karein
+1. Project Overview → Web icon (`</>`) → app register karein
+2. `firebaseConfig` values copy kar ke apni `.env.local` (frontend) mein `VITE_FIREBASE_...` variables mein daalein
+
+### C. Backend ke liye Service Account key banayein
+1. Firebase Console → ⚙️ Project settings → **Service accounts** tab
+2. "Generate new private key" click karein — ek JSON file download hogi
+3. Us poori JSON file ka content copy kar ke backend ki `.env` file mein `FIREBASE_SERVICE_ACCOUNT` variable mein (ek hi line mein) paste karein
+
+*(Firestore/Rules ab is app mein zaroori nahi — data Postgres mein jata hai, Firebase sirf login ke liye hai.)*
+
+## Step 3 — Railway par deploy karein (do services banayenge)
+
+### A. Postgres database
+1. https://railway.app par project kholein → **+ New → Database → Add PostgreSQL**
+
+### B. Backend service
+1. **+ New → GitHub Repository** → apni repo select karein
+2. Service ki **Settings → Root Directory** ko `backend` set karein (taake Railway sirf backend folder ko build kare)
+3. **Variables** tab mein:
+   - `DATABASE_URL` — Postgres service ke "Variables" tab se `DATABASE_URL` copy karein (ya Railway mein reference variable `${{Postgres.DATABASE_URL}}` use karein)
+   - `FIREBASE_SERVICE_ACCOUNT` — Step 2C wali poori JSON (ek line mein)
+4. Deploy hone ke baad **Settings → Networking → Generate Domain** — ye backend ka public URL hai (e.g. `budget-backend-production.up.railway.app`)
+
+### C. Frontend service
+1. **+ New → GitHub Repository** → same repo select karein
+2. Is baar Root Directory **khaali/root** rakhein (jahan Dockerfile hai)
+3. **Variables** tab mein saari `VITE_FIREBASE_...` values + `VITE_API_URL` (backend ka URL, Step B.4 se) daalein
+4. Deploy hone ke baad **Generate Domain** — ye aapki live app ka URL hai
+5. Is URL ko Firebase Console → Authentication → Settings → **Authorized domains** mein add karein
+
+## Security
+
+- Backend har request par Firebase login token verify karta hai — sirf sahi logged-in user apna hi data (transactions, ledger, Vault documents) dekh/badal sakta hai, database seedha internet se access nahi hoti
+- Vault (CNIC/Passport/medical documents) ke liye backend file-type (sirf image/PDF) aur size limit dono check karta hai
+- `.env` files kabhi GitHub par commit na karein — `.gitignore` ye already exclude karta hai; asal values sirf Railway ke Variables tab mein rakhein
+- Firebase Service Account key (`FIREBASE_SERVICE_ACCOUNT`) bohat sensitive hai — sirf Railway Variables mein rahe, kahin aur share na karein
 
 ## Zaroori baat
-Firebase ka **free tier** (Spark plan) itna generous hai ke ek personal budget app ke liye paisay lagne ka koi imkaan nahi — jab tak app bohat zyada users use na karay.
+Railway ka free/trial tier limited hai — Postgres + do services chalane ke liye upgrade/paid plan ki zaroorat par sakti hai (Railway dashboard par "Choose a Plan" dekhein).

@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Har user sirf apne hi "budgets/{uid}" tree ko padh/likh sakta hai —
+    // ledger entries, vault documents (CNIC/passport/etc), sab isi ke andar hain.
+    match /budgets/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /budgets/{userId}/{subcollection}/{docId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+
+      // Vault documents par extra checks: sirf image/pdf, aur size cap
+      // (base64 data URL string ki length se rough size check) taake koi
+      // bohat badi ya ajeeb file na daal sake.
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && (
+          subcollection != 'vault'
+          || (
+            request.resource.data.mimeType is string
+            && (
+              request.resource.data.mimeType.matches('image/.*')
+              || request.resource.data.mimeType == 'application/pdf'
+            )
+            && (!('dataUrl' in request.resource.data) || request.resource.data.dataUrl.size() < 2000000)
+          )
+        );
+    }
+
+    // Baaki kuch bhi allow nahi — default deny.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
